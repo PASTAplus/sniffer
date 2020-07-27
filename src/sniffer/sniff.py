@@ -47,8 +47,10 @@ def main(limit: int):
         logger.info("Lock file {} acquired".format(lock.lock_file))
 
     pp = PackagePool(Config.SNIFFER_DB)
+    logger.debug(f"PackagePoolCount: {pp.get_count()}")
     c = package_pool.add_new_packages(pp=pp, limit=limit)
     while c > 0:
+        logger.debug(f"PackagePoolCount: {pp.get_count()}")
         c = package_pool.add_new_packages(pp=pp, limit=limit)
 
     lock.release()
