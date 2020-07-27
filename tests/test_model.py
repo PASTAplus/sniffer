@@ -12,7 +12,7 @@
 :Created:
     7/26/20
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from dateutil import tz
 from pathlib import Path
 
@@ -53,15 +53,25 @@ def test_resource_pool_create(pp, clean_up):
 
 def test_insert_get_package(pp, clean_up):
     pp.insert_package(
-        TEST_PACKAGE_DATA[0][0],
-        datetime.now(tz=ABQ_TZ),
-        TEST_PACKAGE_DATA[0][2],
+        TEST_PACKAGE_DATA[0],
+        TEST_PACKAGE_DATA[1],
+        TEST_PACKAGE_DATA[2],
     )
-    p = pp.get_package(TEST_PACKAGE_DATA[0][0])
+    p = pp.get_package(TEST_PACKAGE_DATA[0])
     assert isinstance(p, Packages)
-    assert p.pid == TEST_PACKAGE_DATA[0][0]
+    assert p.pid == TEST_PACKAGE_DATA[0]
 
 
 def test_package_not_found(pp, clean_up):
-    p = pp.get_package()
+    p = pp.get_package(pid=TEST_PACKAGE_DATA[0])
     assert p is None
+
+
+def test_package_count(pp, clean_up):
+    pp.insert_package(
+        TEST_PACKAGE_DATA[0],
+        TEST_PACKAGE_DATA[1],
+        TEST_PACKAGE_DATA[0],
+    )
+    c = pp.get_count()
+    assert c == 1
