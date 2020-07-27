@@ -26,6 +26,7 @@ logger = daiquiri.getLogger(__name__)
 SQL_PACKAGES = (
     "SELECT datapackagemanager.resource_registry.package_id, "
     "datapackagemanager.resource_registry.date_created, "
+    "datapackagemanager.resource_registry.date_deactivated, "
     "datapackagemanager.resource_registry.doi "
     "FROM datapackagemanager.resource_registry WHERE "
     "resource_type='dataPackage' AND date_created > '<DATE>' "
@@ -50,7 +51,7 @@ def add_new_packages(pp, limit: int = None) -> int:
     for package in packages:
         c += 1
         try:
-            pp.insert_package(package[0], package[1], package[2])
+            pp.insert_package(package[0], package[1], package[2], package[3])
             logger.debug(f"Inserting package: {package[0]}")
         except IntegrityError as e:
             msg = f"Ignoring package '{package[0]}"

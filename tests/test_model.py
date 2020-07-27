@@ -25,6 +25,7 @@ from sniffer.model.sniffer_db import PackagePool, Packages
 TEST_PACKAGE_DATA = (
     "edi.1.1",
     datetime(2016, 12, 1, 12, 55, 8, 778000),
+    datetime(2018, 12, 1, 12, 55, 8, 778000),
     "doi:10.6073/pasta/a30d5b90676008cfb7987f31b4343a35",
 )
 
@@ -56,6 +57,7 @@ def test_insert_get_package(pp, clean_up):
         TEST_PACKAGE_DATA[0],
         TEST_PACKAGE_DATA[1],
         TEST_PACKAGE_DATA[2],
+        TEST_PACKAGE_DATA[3],
     )
     p = pp.get_package(TEST_PACKAGE_DATA[0])
     assert isinstance(p, Packages)
@@ -71,7 +73,8 @@ def test_package_count(pp, clean_up):
     pp.insert_package(
         TEST_PACKAGE_DATA[0],
         TEST_PACKAGE_DATA[1],
-        TEST_PACKAGE_DATA[0],
+        TEST_PACKAGE_DATA[2],
+        TEST_PACKAGE_DATA[3],
     )
     c = pp.get_count()
     assert c == 1

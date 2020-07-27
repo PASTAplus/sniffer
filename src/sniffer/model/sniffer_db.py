@@ -44,6 +44,7 @@ class Packages(Base):
 
     pid = Column(String(), primary_key=True)
     date_created = Column(DateTime(), nullable=False)
+    date_deactivated = Column(DateTime(), nullable=True)
     doi = Column(String(), nullable=True)
 
 
@@ -131,8 +132,19 @@ class PackagePool:
             logger.error(e)
         return p
 
-    def insert_package(self, pid: str, date_created: datetime, doi: str):  #
-        p = Packages(pid=pid, date_created=date_created, doi=doi)
+    def insert_package(
+        self,
+        pid: str,
+        date_created: datetime,
+        date_deactivate: datetime,
+        doi: str,
+    ):
+        p = Packages(
+            pid=pid,
+            date_created=date_created,
+            date_deactivated=date_deactivate,
+            doi=doi,
+        )
         try:
             self.session.add(p)
             self.session.commit()
