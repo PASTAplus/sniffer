@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+:Mod: config
+
+:Synopsis:
+
+:Author:
+    servilla
+
+:Created:
+    5/12/20
+"""
+import datetime
+
+
+class Config:
+    LOCK_FILE = "<PATH>/sniffer.lock"
+    PACKAGE_POOL = "pool.pkl"
+
+    # PASTA resource registry database connection information
+    DB_USER = "<USER>"
+    DB_PW = "<PASSWORD>"
+    DB_DB = "pasta"
+    DB_DRIVER = "postgres+psycopg2"
+    DB_HOST = "package.lternet.edu"
+
+    SNIFFER_DB = "<PATH>/sniffer.sqlite"
+    SNIFFER_TEST_DB = "<PATH>>/sniffer.sqlite"
+
+    START_DATE = datetime.datetime(2013, 1, 1, 0, 0, 0, 0)
+
+    DATA_STORE = "<PATH>"
