@@ -1,0 +1,14 @@
+name: sniffer
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.8
+  - daiquiri=2.1.1
+  - pendulum=2.1.0
+  - sqlalchemy=1.3.18
+  - click=7.1.2
+  - pytest=5.4.3
+  - black=19.10b0
+  - psycopg2=2.8.5
+prefix: /home/servilla/anaconda3/envs/sniffer

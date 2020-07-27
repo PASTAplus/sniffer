@@ -1,0 +1,8 @@
+python=3.8
+daiquiri
+pendulum
+sqlalchemy
+click
+pytest
+black
+psycopg2
