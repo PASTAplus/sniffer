@@ -101,6 +101,14 @@ class PackagePool:
             logger.error(e)
         return p
 
+    def get_count(self) -> int:
+        c = 0
+        try:
+            c = self.session.query(Packages).count()
+        except NoResultFound as e:
+            logger.error(e)
+        return c
+
     def get_most_recent_create_date(self) -> datetime:
         d = None
         try:
@@ -116,6 +124,7 @@ class PackagePool:
         return d
 
     def get_package(self, pid: str) -> Query:
+        p = None
         try:
             p = self.session.query(Packages).filter(Packages.pid == pid).one()
         except NoResultFound as e:
