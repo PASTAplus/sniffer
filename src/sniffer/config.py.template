@@ -26,8 +26,13 @@ class Config:
     DB_DRIVER = "postgres+psycopg2"
     DB_HOST = "package.lternet.edu"
 
-    SNIFFER_DB = "<PATH>/sniffer.sqlite"
-    SNIFFER_TEST_DB = "<PATH>>/sniffer.sqlite"
+    PATH = "<PATH>/sniffer/src/sniffer/"
+    DB_PATH = "<PATH>/sniffer/src/sniffer/"
+    TEST_DB_PATH = "<PATH>>/sniffer/tests/"
+
+    PACKAGE_DB = "package.sqlite"
+    OFFLINE_DB = "offline.sqlite"
+    EMBARGO = "embargo.sqlite"
 
     START_DATE = datetime.datetime(2013, 1, 1, 0, 0, 0, 0)
 
