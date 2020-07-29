@@ -20,8 +20,9 @@ import daiquiri
 
 from sniffer.config import Config
 from sniffer.lock import Lock
-import sniffer.package_pool as package_pool
-from sniffer.model.sniffer_db import PackagePool
+import sniffer.offline.offline_pool as offline_pool
+import sniffer.package.package_pool as package_pool
+from sniffer.model.package_db import PackageDB
 
 
 cwd = os.path.dirname(os.path.realpath(__file__))
@@ -46,12 +47,11 @@ def main(limit: int):
         lock.acquire()
         logger.info("Lock file {} acquired".format(lock.lock_file))
 
-    pp = PackagePool(Config.SNIFFER_DB)
-    logger.info(f"PackagePoolCount: {pp.get_count()}")
-    c = package_pool.add_new_packages(pp=pp, limit=limit)
+    c = package_pool.add_new_packages(limit=limit)
+    logger.info(f"Packages acquired: {c}")
     while c > 0:
-        logger.info(f"PackagePoolCount: {pp.get_count()}")
-        c = package_pool.add_new_packages(pp=pp, limit=limit)
+        c = package_pool.add_new_packages(limit=limit)
+        logger.info(f"Packages acquired: {c}")
 
     lock.release()
     logger.info("Lock file {} released".format(lock.lock_file))
