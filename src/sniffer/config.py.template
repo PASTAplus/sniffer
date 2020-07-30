@@ -17,7 +17,6 @@ import datetime
 
 class Config:
     LOCK_FILE = "<PATH>/sniffer.lock"
-    PACKAGE_POOL = "pool.pkl"
 
     # PASTA resource registry database connection information
     DB_USER = "<USER>"
@@ -27,12 +26,21 @@ class Config:
     DB_HOST = "package.lternet.edu"
 
     PATH = "<PATH>/sniffer/src/sniffer/"
-    DB_PATH = "<PATH>/sniffer/src/sniffer/"
-    TEST_DB_PATH = "<PATH>>/sniffer/tests/"
+    TEST_PATH = "<PATH>>/sniffer/tests/"
 
-    PACKAGE_DB = "package.sqlite"
-    OFFLINE_DB = "offline.sqlite"
-    EMBARGO = "embargo.sqlite"
+    PACKAGE_DB = "package/package.sqlite"
+    OFFLINE_DB = "offline/offline.sqlite"
+    EMBARGO_DB = "embargo/embargo.sqlite"
+
+    PACKAGE_DATE = "package/package_date.txt"
+    OFFLINE_DATE = "offline/offline_date.txt"
+    EMBARGO_DATE = "embargo/embargo_date.txt"
+
+    PASTA_URL = "https://pasta.lternet.edu/package/"
+    METADATA_URL = PASTA_URL + "metadata/eml/<SCOPE>/<IDENTIFIER>/<REVISION>"
+
+    DN = <USER>
+    PASSWORD = <PASSWORD>
 
     START_DATE = datetime.datetime(2013, 1, 1, 0, 0, 0, 0)
 
