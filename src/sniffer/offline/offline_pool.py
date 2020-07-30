@@ -16,36 +16,78 @@ from datetime import datetime
 from pathlib import Path
 
 import daiquiri
+from lxml import etree
+import requests
 
 from sniffer.config import Config
+import sniffer.last_date as last_date
 from sniffer.model.offline_db import OfflineDB
-from sniffer.model.package_db import PackageDB
+from sniffer.package.package_pool import PackagePool
 
 
 logger = daiquiri.getLogger(__name__)
 
 
-def read_last_date(file_path: str) -> datetime:
-    if Path(file_path).exists():
-        with open(file_path, "r") as f:
-            iso = datetime.fromisoformat(f.readline().strip())
-    else:
-        iso = Config.START_DATE
-    return iso
+def offline_parse(eml: str):
+    resources = list()
+    tree = etree.fromstring(eml.encode("utf-8"))
+    phys = tree.findall("./dataset//physical")
+    for phy in phys:
+        distributions = phy.findall(".//distribution")
+        for distribution in distributions:
+            offline_elem = distribution.find(".//offline")
+            if offline_elem is not None:
+                medium_name = offline_elem.find(".//mediumName").text
+                object_name = phy.find(".//objectName").text
+                resources.append([object_name, medium_name])
+    return resources
 
 
-def write_last_date(file_path: str, iso: datetime):
-    with open(file_path, "w") as f:
-        f.write(str(iso.isoformat()))
+class OfflinePool:
+    def __init__(self):
+        db_path = Config.PATH + Config.OFFLINE_DB
+        self._o_db = OfflineDB(db_path)
+        self._package_pool = PackagePool()
 
+    def add_new_offline_resources(self) -> int:
+        dn = Config.DN
+        pw = Config.PASSWORD
+        r = requests.get(Config.PASTA_URL, auth=(dn, pw))
+        r.raise_for_status()
+        token = r.cookies["auth-token"]
+        cookies = {"auth-token": token}
 
-def add_new_offline_resources():
-    o_db_path = Config.DB_PATH + Config.OFFLINE_DB
-    o_db = OfflineDB(o_db_path)
-    p_db_path = Config.DB_PATH + Config.PACKAGE_DB
-    p_db = PackageDB(o_db_path)
+        offline_date_path = Config.PATH + Config.OFFLINE_DATE
+        from_date = last_date.read(offline_date_path)
+        packages = self._package_pool.get_all_packages(from_date=from_date)
+        for package in packages:
+            pid = package.pid.strip()
+            scope, identifier, revision = pid.split(".")
+            if scope not in (
+                "ecotrends",
+                "lter-landsat",
+                "lter-landsat-ledaps",
+            ):
+                metadata_url = (
+                    Config.METADATA_URL.replace("<SCOPE>", scope)
+                    .replace("<IDENTIFIER>", identifier)
+                    .replace("<REVISION>", revision)
+                )
+                r = requests.get(metadata_url, cookies=cookies)
+                if r.status_code == requests.codes.ok:
+                    resources = offline_parse(r.text)
+                    for resource in resources:
+                        self._o_db.insert_offline_resource(
+                            pid, resource[0], resource[1]
+                        )
+                        logger.info(
+                            f"Adding offline resource: {pid}, {resource[0]}, {resource[1]}"
+                        )
+                else:
+                    logger.warn(
+                        f"Ignoring {pid}: status code is {r.status_code}"
+                    )
+                last_date.write(offline_date_path, package.date_created)
 
-    last_date = read_last_date(Config.PATH + "offline_date.txt")
-    packages = p_db.get_all_from_date(last_date)
-    for package in packages:
-        pid = package.pid
+        count = 0
+        return count
