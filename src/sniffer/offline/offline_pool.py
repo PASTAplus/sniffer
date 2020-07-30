@@ -75,6 +75,7 @@ class OfflinePool:
                 )
                 r = requests.get(metadata_url, cookies=cookies)
                 if r.status_code == requests.codes.ok:
+                    logger.info(f"Parsing {pid}")
                     resources = offline_parse(r.text)
                     for resource in resources:
                         self._o_db.insert_offline_resource(
