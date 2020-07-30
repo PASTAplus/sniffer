@@ -32,7 +32,7 @@ daiquiri.setup(
 logger = daiquiri.getLogger(__name__)
 
 help_limit = "Query limit to PASTA+ resource registry."
-help_offline = "Sniff for offline data resources"
+help_offline = "Sniff for offline data resources."
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
