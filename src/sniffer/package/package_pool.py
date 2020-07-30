@@ -64,10 +64,7 @@ class PackagePool:
         return count
 
     def get_all_packages(self, from_date: datetime = None):
-        if from_date is None:
-            return self._p_db.get_all_packages()
-        else:
-            return self._p_db.get_all_from_date(from_date=from_date)
+        return self._p_db.get_all_packages(from_date=from_date)
 
     @property
     def count(self):

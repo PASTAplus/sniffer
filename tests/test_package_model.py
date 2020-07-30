@@ -98,7 +98,7 @@ def test_get_all_packages(p_db, clean_up):
         assert package.doi == TEST_PACKAGE_DATA[3]
 
 
-def test_get_all_from_date(p_db, clean_up):
+def test_get_all_packages_from_date(p_db, clean_up):
     pk = p_db.insert_package(
         TEST_PACKAGE_DATA[0],
         TEST_PACKAGE_DATA[1],
@@ -109,7 +109,7 @@ def test_get_all_from_date(p_db, clean_up):
     assert c == 1
 
     from_date = Config.START_DATE
-    packages = p_db.get_all_from_date(from_date=from_date)
+    packages = p_db.get_all_packages(from_date=from_date)
     for package in packages:
         assert package.pid == TEST_PACKAGE_DATA[0]
         assert package.date_created == TEST_PACKAGE_DATA[1]

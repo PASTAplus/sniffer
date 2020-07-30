@@ -56,20 +56,20 @@ class PackageDB:
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-    def get_all_from_date(self, from_date: datetime) -> Query:
+    def get_all_packages(self, from_date: datetime = None) -> Query:
         try:
-            p = (
-                self.session.query(Package)
-                .filter(Package.date_created > from_date)
-                .all()
-            )
-        except NoResultFound as e:
-            logger.error(e)
-        return p
-
-    def get_all_packages(self) -> Query:
-        try:
-            p = self.session.query(Package).all()
+            if from_date is None:
+                p = (
+                    self.session.query(Package)
+                    .order_by(Package.date_created.asc())
+                    .all())
+            else:
+                p = (
+                    self.session.query(Package)
+                    .filter(Package.date_created > from_date)
+                    .order_by(Package.date_created.asc())
+                    .all()
+                )
         except NoResultFound as e:
             logger.error(e)
         return p
