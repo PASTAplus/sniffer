@@ -19,19 +19,14 @@ import pytest
 from sniffer.config import Config
 from sniffer.model.offline_db import OfflineDB, OfflineResource
 
-TEST_OFFLINE_RESOURCE_DATA = (
-    "edi.1.1",
-    "test_object",
-    "local_disk"
-)
-
-db_path = Config.TEST_DB_PATH + Config.OFFLINE_DB
+TEST_OFFLINE_RESOURCE_DATA = ("edi.1.1", "test_object", "local_disk")
+Config.PATH = Config.TEST_PATH
+db_path = Config.PATH + Config.OFFLINE_DB
 
 
 @pytest.fixture()
 def o_db():
-    offline_db = OfflineDB(db_path)
-    return offline_db
+    return OfflineDB(db_path)
 
 
 @pytest.fixture()
@@ -52,7 +47,7 @@ def test_insert_offline_resource(o_db, clean_up):
     oid = o_db.insert_offline_resource(
         TEST_OFFLINE_RESOURCE_DATA[0],
         TEST_OFFLINE_RESOURCE_DATA[1],
-        TEST_OFFLINE_RESOURCE_DATA[2]
+        TEST_OFFLINE_RESOURCE_DATA[2],
     )
     assert oid is not None
 
@@ -61,7 +56,7 @@ def test_get_offline_resource_by_oid(o_db, clean_up):
     oid = o_db.insert_offline_resource(
         TEST_OFFLINE_RESOURCE_DATA[0],
         TEST_OFFLINE_RESOURCE_DATA[1],
-        TEST_OFFLINE_RESOURCE_DATA[2]
+        TEST_OFFLINE_RESOURCE_DATA[2],
     )
     assert oid is not None
     o = o_db.get_offline_resource_by_oid(oid=oid)
@@ -75,13 +70,13 @@ def test_get_all_offline_resources(o_db, clean_up):
     oid = o_db.insert_offline_resource(
         TEST_OFFLINE_RESOURCE_DATA[0],
         TEST_OFFLINE_RESOURCE_DATA[1],
-        TEST_OFFLINE_RESOURCE_DATA[2]
+        TEST_OFFLINE_RESOURCE_DATA[2],
     )
     assert oid is not None
     oid = o_db.insert_offline_resource(
         TEST_OFFLINE_RESOURCE_DATA[0],
         TEST_OFFLINE_RESOURCE_DATA[1],
-        TEST_OFFLINE_RESOURCE_DATA[2]
+        TEST_OFFLINE_RESOURCE_DATA[2],
     )
     assert oid is not None
 
@@ -96,7 +91,7 @@ def test_get_offline_resource_by_pid(o_db, clean_up):
     oid = o_db.insert_offline_resource(
         TEST_OFFLINE_RESOURCE_DATA[0],
         TEST_OFFLINE_RESOURCE_DATA[1],
-        TEST_OFFLINE_RESOURCE_DATA[2]
+        TEST_OFFLINE_RESOURCE_DATA[2],
     )
     assert oid is not None
 
