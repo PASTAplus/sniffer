@@ -28,20 +28,20 @@ TEST_PACKAGE_DATA = (
     datetime(2018, 12, 1, 12, 55, 8, 778000),
     "doi:10.6073/pasta/a30d5b90676008cfb7987f31b4343a35",
 )
-
 ABQ_TZ = tz.gettz("America/Denver")
-packages_db = Config.TEST_DB_PATH + Config.PACKAGE_DB
+Config.PATH = Config.TEST_PATH
+db_path = Config.PATH + Config.PACKAGE_DB
+
 
 @pytest.fixture()
 def p_db():
-    package_pool = PackageDB(packages_db)
-    return package_pool
+    return PackageDB(db_path)
 
 
 @pytest.fixture()
 def clean_up():
     yield
-    Path(packages_db).unlink(missing_ok=True)
+    Path(db_path).unlink(missing_ok=True)
 
 
 def test_pasta_db_connection():
@@ -49,7 +49,7 @@ def test_pasta_db_connection():
 
 
 def test_resource_pool_create(p_db, clean_up):
-    assert Path(packages_db).exists()
+    assert Path(db_path).exists()
 
 
 def test_insert_get_package(p_db, clean_up):
@@ -115,4 +115,3 @@ def test_get_all_from_date(p_db, clean_up):
         assert package.date_created == TEST_PACKAGE_DATA[1]
         assert package.date_deactivated == TEST_PACKAGE_DATA[2]
         assert package.doi == TEST_PACKAGE_DATA[3]
-
