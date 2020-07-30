@@ -134,3 +134,4 @@ dmypy.json
 config.py
 *.sqlite
 tests/data
+*_date.txt
