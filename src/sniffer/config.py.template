@@ -22,7 +22,7 @@ class Config:
     DB_USER = "<USER>"
     DB_PW = "<PASSWORD>"
     DB_DB = "pasta"
-    DB_DRIVER = "postgres+psycopg2"
+    DB_DRIVER = "postgresql+psycopg2"
     DB_HOST = "package.lternet.edu"
 
     PATH = "<PATH>/sniffer/src/sniffer/"
