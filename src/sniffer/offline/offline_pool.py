@@ -12,9 +12,6 @@
 :Created:
     7/28/20
 """
-from datetime import datetime
-from pathlib import Path
-
 import daiquiri
 from lxml import etree
 import requests
@@ -78,7 +75,7 @@ class OfflinePool:
                     logger.info(f"Parsing {pid}")
                     resources = offline_parse(r.text)
                     for resource in resources:
-                        self._o_db.insert_offline_resource(
+                        self._o_db.insert(
                             pid, resource[0], resource[1]
                         )
                         logger.info(

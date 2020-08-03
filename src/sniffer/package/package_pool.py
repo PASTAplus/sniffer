@@ -19,7 +19,7 @@ from sqlalchemy.exc import IntegrityError
 
 from sniffer.config import Config
 from sniffer.model.package_db import PackageDB
-from sniffer.package import pasta_resource_registry
+from sniffer.model import pasta_data_package_manager_db
 
 logger = daiquiri.getLogger(__name__)
 
@@ -49,13 +49,13 @@ class PackagePool:
         else:
             sql = SQL_PACKAGES.replace("<DATE>", iso)
 
-        packages = pasta_resource_registry.query(sql)
+        packages = pasta_data_package_manager_db.query(sql)
         count = 0
         for package in packages:
             count += 1
             try:
-                self._p_db.insert_package(package[0], package[1], package[2],
-                    package[3])
+                self._p_db.insert(package[0], package[1], package[2],
+                                  package[3])
                 logger.debug(f"Inserting package: {package[0]}")
             except IntegrityError as e:
                 msg = f"Ignoring package '{package[0]}"
@@ -64,7 +64,7 @@ class PackagePool:
         return count
 
     def get_all_packages(self, from_date: datetime = None):
-        return self._p_db.get_all_packages(from_date=from_date)
+        return self._p_db.get_all(from_date=from_date)
 
     @property
     def count(self):

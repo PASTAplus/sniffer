@@ -53,24 +53,24 @@ def test_resource_pool_create(p_db, clean_up):
 
 
 def test_insert_get_package(p_db, clean_up):
-    pk = p_db.insert_package(
+    pk = p_db.insert(
         TEST_PACKAGE_DATA[0],
         TEST_PACKAGE_DATA[1],
         TEST_PACKAGE_DATA[2],
         TEST_PACKAGE_DATA[3],
     )
-    p = p_db.get_package(TEST_PACKAGE_DATA[0])
+    p = p_db.get(TEST_PACKAGE_DATA[0])
     assert isinstance(p, Package)
     assert p.pid == TEST_PACKAGE_DATA[0]
 
 
 def test_package_not_found(p_db, clean_up):
-    p = p_db.get_package(pid=TEST_PACKAGE_DATA[0])
+    p = p_db.get(pid=TEST_PACKAGE_DATA[0])
     assert p is None
 
 
 def test_package_count(p_db, clean_up):
-    pk = p_db.insert_package(
+    pk = p_db.insert(
         TEST_PACKAGE_DATA[0],
         TEST_PACKAGE_DATA[1],
         TEST_PACKAGE_DATA[2],
@@ -81,7 +81,7 @@ def test_package_count(p_db, clean_up):
 
 
 def test_get_all_packages(p_db, clean_up):
-    pk = p_db.insert_package(
+    pk = p_db.insert(
         TEST_PACKAGE_DATA[0],
         TEST_PACKAGE_DATA[1],
         TEST_PACKAGE_DATA[2],
@@ -90,7 +90,7 @@ def test_get_all_packages(p_db, clean_up):
     c = p_db.get_count()
     assert c == 1
 
-    packages = p_db.get_all_packages()
+    packages = p_db.get_all()
     for package in packages:
         assert package.pid == TEST_PACKAGE_DATA[0]
         assert package.date_created == TEST_PACKAGE_DATA[1]
@@ -99,7 +99,7 @@ def test_get_all_packages(p_db, clean_up):
 
 
 def test_get_all_packages_from_date(p_db, clean_up):
-    pk = p_db.insert_package(
+    pk = p_db.insert(
         TEST_PACKAGE_DATA[0],
         TEST_PACKAGE_DATA[1],
         TEST_PACKAGE_DATA[2],
@@ -109,7 +109,7 @@ def test_get_all_packages_from_date(p_db, clean_up):
     assert c == 1
 
     from_date = Config.START_DATE
-    packages = p_db.get_all_packages(from_date=from_date)
+    packages = p_db.get_all(from_date=from_date)
     for package in packages:
         assert package.pid == TEST_PACKAGE_DATA[0]
         assert package.date_created == TEST_PACKAGE_DATA[1]

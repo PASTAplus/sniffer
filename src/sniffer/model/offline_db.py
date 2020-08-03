@@ -41,7 +41,7 @@ Base = declarative_base()
 class OfflineResource(Base):
     __tablename__ = "offline_resources"
 
-    oid = Column(Integer(), primary_key=True)
+    id = Column(Integer(), primary_key=True)
     pid = Column(String(), nullable=False)
     object_name = Column(String(), nullable=False)
     medium = Column(String(), nullable=False)
@@ -56,37 +56,37 @@ class OfflineDB:
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-    def get_all_offline_resources(self) -> Query:
+    def get_all(self) -> Query:
         try:
             o = self.session.query(OfflineResource).all()
-        except NoResultFound as e:
-            logger.error(e)
+        except NoResultFound as ex:
+            logger.error(ex)
         return o
 
-    def get_offline_resource_by_oid(self, oid: int) -> Query:
+    def get_by_id(self, id: int) -> Query:
         o = None
         try:
             o = (
                 self.session.query(OfflineResource)
-                .filter(OfflineResource.oid == oid)
+                .filter(OfflineResource.id == id)
                 .one()
             )
-        except NoResultFound as e:
-            logger.error(e)
+        except NoResultFound as ex:
+            logger.error(ex)
         return o
 
-    def get_offline_resource_by_pid(self, pid: str) -> Query:
+    def get_by_pid(self, pid: str) -> Query:
         try:
             o = (
                 self.session.query(OfflineResource)
                 .filter(OfflineResource.pid == pid)
                 .all()
             )
-        except NoResultFound as e:
-            logger.error(e)
+        except NoResultFound as ex:
+            logger.error(ex)
         return o
 
-    def insert_offline_resource(
+    def insert(
         self, pid: str, object_name: str, medium: str
     ) -> int:
         pk = None
@@ -94,9 +94,9 @@ class OfflineDB:
         try:
             self.session.add(o)
             self.session.commit()
-            pk = o.oid
-        except IntegrityError as e:
-            logger.error(e)
+            pk = o.id
+        except IntegrityError as ex:
+            logger.error(ex)
             self.session.rollback()
-            raise e
+            raise ex
         return pk

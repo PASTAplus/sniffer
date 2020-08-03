@@ -60,14 +60,14 @@ def clean_up():
 
 
 def test_offline_pool(offline_pool, p_db, clean_up):
-    pk = p_db.insert_package(
+    pk = p_db.insert(
         TEST_PACKAGE_DATA[0][0],
         TEST_PACKAGE_DATA[0][1],
         TEST_PACKAGE_DATA[0][2],
         TEST_PACKAGE_DATA[0][3],
     )
     assert pk == TEST_PACKAGE_DATA[0][0]
-    pk = p_db.insert_package(
+    pk = p_db.insert(
         TEST_PACKAGE_DATA[1][0],
         TEST_PACKAGE_DATA[1][1],
         TEST_PACKAGE_DATA[1][2],

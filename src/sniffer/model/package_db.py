@@ -56,7 +56,7 @@ class PackageDB:
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-    def get_all_packages(self, from_date: datetime = None) -> Query:
+    def get_all(self, from_date: datetime = None) -> Query:
         try:
             if from_date is None:
                 p = (
@@ -70,16 +70,16 @@ class PackageDB:
                     .order_by(Package.date_created.asc())
                     .all()
                 )
-        except NoResultFound as e:
-            logger.error(e)
+        except NoResultFound as ex:
+            logger.error(ex)
         return p
 
     def get_count(self) -> int:
         c = 0
         try:
             c = self.session.query(Package).count()
-        except NoResultFound as e:
-            logger.error(e)
+        except NoResultFound as ex:
+            logger.error(ex)
         return c
 
     def get_most_recent_create_date(self) -> datetime:
@@ -92,19 +92,19 @@ class PackageDB:
             )
             if p is not None:
                 d = p.date_created
-        except NoResultFound as e:
-            logger.error(e)
+        except NoResultFound as ex:
+            logger.error(ex)
         return d
 
-    def get_package(self, pid: str) -> Query:
+    def get(self, pid: str) -> Query:
         p = None
         try:
             p = self.session.query(Package).filter(Package.pid == pid).one()
-        except NoResultFound as e:
-            logger.error(e)
+        except NoResultFound as ex:
+            logger.error(ex)
         return p
 
-    def insert_package(
+    def insert(
         self,
         pid: str,
         date_created: datetime,
@@ -122,9 +122,9 @@ class PackageDB:
             self.session.add(p)
             self.session.commit()
             pk = p.pid
-        except IntegrityError as e:
-            logger.error(e)
+        except IntegrityError as ex:
+            logger.error(ex)
             self.session.rollback()
-            raise e
+            raise ex
 
         return pk
