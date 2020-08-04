@@ -86,3 +86,31 @@ def test_generate_pid(embargo_pool, e_db, clean_up):
     pid = ep.generate_pid(TEST_EMBARGO_DATA_RESOURCE[0][0])
     assert pid == TEST_EMBARGO_DATA_RESOURCE[0][1]
 
+
+def test_verify_metadata_embargo(embargo_pool, e_db, clean_up):
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[0][0],
+        TEST_EMBARGO_METADATA_RESOURCE[0][1],
+    )
+    assert pk == 1
+
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[1][0],
+        TEST_EMBARGO_METADATA_RESOURCE[1][1],
+    )
+    assert pk == 2
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[0][0],
+        TEST_EMBARGO_DATA_RESOURCE[0][1],
+    )
+    assert pk == 3
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[1][0],
+        TEST_EMBARGO_DATA_RESOURCE[1][1],
+    )
+    assert pk == 4
+
+    embargo_pool.verify_metadata_embargo()
+    pass

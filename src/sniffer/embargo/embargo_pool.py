@@ -61,12 +61,17 @@ def generate_pid(resource: str) -> str:
     return pid
 
 
+def pid_metadata(pid: str) -> str:
+    eml = None
+    scope, identifier, revision = pid.splite(".")
+    url =
+
+
 class EmbargoPool:
     def __init__(self):
         db_path = Config.PATH + Config.EMBARGO_DB
         Path(db_path).unlink(missing_ok=True)  # Start fresh each execution
         self._e_db = EmbargoDB(db_path)
-        self._package_pool = PackagePool()
 
     def add_new_embargoed_resources(self) -> int:
         count = 0
@@ -98,4 +103,6 @@ class EmbargoPool:
         return count
 
     def verify_metadata_embargo(self):
-        pass
+        embargoed_pids = self._e_db.get_distinct_pids()
+        for pid in embargoed_pids:
+            print(pid[0])

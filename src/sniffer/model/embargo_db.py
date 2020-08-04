@@ -63,6 +63,17 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
+    def get_all_package_level_embargoes(self):
+        try:
+            e = (
+                self.session.query(EmbargoedResource)
+                .filter(EmbargoedResource.rid.like("%/metadata/eml/%"))
+                .all()
+            )
+        except NoResultFound as ex:
+            logger.error(ex)
+        return e
+
     def get_count(self) -> int:
         c = 0
         try:
@@ -72,13 +83,8 @@ class EmbargoDB:
         return c
 
     def get_distinct_pids(self):
-        e = None
         try:
-            e = (
-                self.session.query(EmbargoedResource.pid)
-                .distinct()
-                .all()
-            )
+            e = self.session.query(EmbargoedResource.pid).distinct().all()
         except NoResultFound as ex:
             logger.error(ex)
         return e
@@ -117,7 +123,7 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
-    def insert(self, rid: str, pid: str, created: datetime = None) -> int:
+    def insert(self, rid: str, pid: str, created: datetime = None,) -> int:
         pk = None
         e = EmbargoedResource(rid=rid, pid=pid, date_ephemeral=created)
         try:

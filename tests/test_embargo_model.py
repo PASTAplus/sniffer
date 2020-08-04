@@ -68,6 +68,8 @@ def test_pasta_db_connection():
 
 def test_resource_pool_create(e_db, clean_up):
     assert Path(db_path).exists()
+    embargoes = e_db.get_all()
+    assert embargoes is not None
 
 
 def test_get_by_id(e_db, clean_up):
@@ -161,3 +163,36 @@ def test_distinct_pids(e_db, clean_up):
         assert pid[0] in test_pids
 
 
+def test_package_level_embargoes(e_db, clean_up):
+    test_pids = (
+        TEST_EMBARGO_METADATA_RESOURCE[0][1],
+        TEST_EMBARGO_METADATA_RESOURCE[1][1],
+    )
+
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[0][0],
+        TEST_EMBARGO_METADATA_RESOURCE[0][1],
+    )
+    assert pk == 1
+
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[1][0],
+        TEST_EMBARGO_METADATA_RESOURCE[1][1],
+    )
+    assert pk == 2
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[0][0],
+        TEST_EMBARGO_DATA_RESOURCE[0][1],
+    )
+    assert pk == 3
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[1][0],
+        TEST_EMBARGO_DATA_RESOURCE[1][1],
+    )
+    assert pk == 4
+
+    embargoes = e_db.get_all_package_level_embargoes()
+    for embargo in embargoes:
+        assert embargo.pid in test_pids
