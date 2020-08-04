@@ -35,12 +35,12 @@ TEST_EMBARGO_DATA_RESOURCE = (
     [
         "https://pasta.lternet.edu/package/data/eml/edi/512/1/bb87318745d9b83f102aa0a58e9b5386",
         "edi.512.1",
-        "2020-05-13 13:44:42.444000",
+        "2020-05-13 13:44:41.369000",
     ],
     [
         "https://pasta.lternet.edu/package/data/eml/edi/512/1/c858be23bac4b5f93b830bcbdac6ba2c",
         "edi.512.1",
-        "2020-05-13 13:44:42.444000",
+        "2020-05-13 13:44:40.776000",
     ],
     [
         "https://pasta.lternet.edu/package/data/eml/knb-lter-fce/1210/4/c7d09464082a09ec5c232ee314a4f42a",
@@ -209,3 +209,40 @@ def test_update_ephemeral_date(e_db, clean_up):
     e = e_db.update_ephemeral_date(TEST_EMBARGO_DATA_RESOURCE[0][0], now)
     assert e.date_ephemeral == now
 
+
+def test_get_all_ephemeral_embargoes(e_db, clean_up):
+    test_ephermeral_rids = (
+        TEST_EMBARGO_DATA_RESOURCE[0][0],
+        TEST_EMBARGO_DATA_RESOURCE[1][0],
+    )
+    test_non_ephermeral_rids = (
+        TEST_EMBARGO_DATA_RESOURCE[2][0],
+    )
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[0][0],
+        TEST_EMBARGO_DATA_RESOURCE[0][1],
+        datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[0][2])
+    )
+    assert pk == 1
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[1][0],
+        TEST_EMBARGO_DATA_RESOURCE[1][1],
+        datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[1][2])
+    )
+    assert pk == 2
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[2][0],
+        TEST_EMBARGO_DATA_RESOURCE[2][1],
+    )
+    assert pk == 3
+
+    embargoes = e_db.get_all_ephemeral_embargoes()
+    for embargo in embargoes:
+        assert embargo.rid in test_ephermeral_rids
+
+    embargoes = e_db.get_all_ephemeral_embargoes(anti=True)
+    for embargo in embargoes:
+        assert embargo.rid in test_non_ephermeral_rids

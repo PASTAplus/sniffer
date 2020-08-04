@@ -64,6 +64,24 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
+    def get_all_ephemeral_embargoes(self, anti: bool = False) -> Query:
+        try:
+            if anti:
+                e = (
+                    self.session.query(EmbargoedResource)
+                    .filter(EmbargoedResource.date_ephemeral == None)
+                    .all()
+                )
+            else:
+                e = (
+                    self.session.query(EmbargoedResource)
+                    .filter(EmbargoedResource.date_ephemeral != None)
+                    .all()
+                )
+        except NoResultFound as ex:
+            logger.error(ex)
+        return e
+
     def get_all_package_level_embargoes(self) -> Query:
         try:
             e = (
