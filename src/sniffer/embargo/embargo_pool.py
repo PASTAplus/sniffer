@@ -33,14 +33,14 @@ SQL_METADATA_RESOURCES = (
     "SELECT datapackagemanager.access_matrix.resource_id "
     "FROM datapackagemanager.access_matrix WHERE "
     "resource_id LIKE '%%/metadata/eml/%%'  AND principal='public' "
-    " AND access_type='deny'"
+    " AND access_type='deny' AND permission='read'"
 )
 
 SQL_DATA_RESOURCES = (
     "SELECT datapackagemanager.access_matrix.resource_id "
     "FROM datapackagemanager.access_matrix WHERE "
     "resource_id LIKE '%%/data/eml/%%'  AND principal='public' "
-    " AND access_type='deny'"
+    " AND access_type='deny' AND permission='read'"
 )
 
 SQL_RESOURCE_CREATE_DATE = (
