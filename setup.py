@@ -25,7 +25,7 @@ with open(path.join(here, "LICENSE"), encoding="utf-8") as f:
 
 setup(
     name="sniffer",
-    version="2020.07.24",
+    version="2020.08.04",
     description=(
         "Data package sniffer framework to analyze aspects"
         " of the PASTA+ data package"
@@ -42,13 +42,16 @@ setup(
     python_requires=">3.8.*",
     install_requires=[
         "click >= 7.1.1",
+        "black >= 19.10b0",
         "daiquiri >= 2.1.1",
-        "python-dateutil >= 2.8.1",
-        "sqlalchemy >= 1.3.16",
+        "lxml >= 4.5.2",
+        "psycopg2 >= 2.8.5",
         "pendulum >= 2.1.0",
         "psycopg2 >= 2.8.5",
         "pytest >= 5.4.3",
-    ],
+        "python-dateutil >= 2.8.1",
+        "requests >= 2.24.0",
+        "sqlalchemy >= 1.3.16", ],
     entry_points={"console_scripts": ["sniffer=sniffer.sniff:main"]},
     classifiers=["License :: OSI Approved :: Apache Software License",],
 )
