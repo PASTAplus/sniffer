@@ -64,31 +64,51 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
-    def get_all_ephemeral_embargoes(self, anti: bool = False) -> Query:
+    def get_all_data_embargoes(self, ephemeral: bool = False) -> Query:
         try:
-            if anti:
+            if ephemeral:
                 e = (
                     self.session.query(EmbargoedResource)
-                    .filter(EmbargoedResource.date_ephemeral == None)
+                    .filter(EmbargoedResource.rid.like("%/data/eml/%"))
                     .all()
                 )
             else:
                 e = (
                     self.session.query(EmbargoedResource)
-                    .filter(EmbargoedResource.date_ephemeral != None)
+                    .filter(EmbargoedResource.rid.like("%/data/eml/%"))
+                    .filter(EmbargoedResource.date_ephemeral == None)
                     .all()
                 )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_all_package_level_embargoes(self) -> Query:
+    def get_all_ephemeral_embargoes(self):
         try:
             e = (
                 self.session.query(EmbargoedResource)
-                .filter(EmbargoedResource.rid.like("%/metadata/eml/%"))
+                .filter(EmbargoedResource.date_ephemeral != None)
                 .all()
             )
+        except NoResultFound as ex:
+            logger.error(ex)
+        return e
+
+    def get_all_package_embargoes(self, ephemeral: bool = False) -> Query:
+        try:
+            if ephemeral:
+                e = (
+                    self.session.query(EmbargoedResource)
+                    .filter(EmbargoedResource.rid.like("%/metadata/eml/%"))
+                    .all()
+                )
+            else:
+                e = (
+                    self.session.query(EmbargoedResource)
+                    .filter(EmbargoedResource.rid.like("%/metadata/eml/%"))
+                    .filter(EmbargoedResource.date_ephemeral == None)
+                    .all()
+                )
         except NoResultFound as ex:
             logger.error(ex)
         return e

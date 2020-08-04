@@ -193,7 +193,7 @@ def test_package_level_embargoes(e_db, clean_up):
     )
     assert pk == 4
 
-    embargoes = e_db.get_all_package_level_embargoes()
+    embargoes = e_db.get_all_package_embargoes()
     for embargo in embargoes:
         assert embargo.pid in test_pids
 
@@ -210,39 +210,95 @@ def test_update_ephemeral_date(e_db, clean_up):
     assert e.date_ephemeral == now
 
 
-def test_get_all_ephemeral_embargoes(e_db, clean_up):
-    test_ephermeral_rids = (
-        TEST_EMBARGO_DATA_RESOURCE[0][0],
-        TEST_EMBARGO_DATA_RESOURCE[1][0],
-    )
-    test_non_ephermeral_rids = (
+def test_get_all_date_embargoes(e_db, clean_up):
+    test_data_rids = (
         TEST_EMBARGO_DATA_RESOURCE[2][0],
     )
+    test_data_ephermeral_rids = (
+        TEST_EMBARGO_DATA_RESOURCE[0][0],
+        TEST_EMBARGO_DATA_RESOURCE[1][0],
+        TEST_EMBARGO_DATA_RESOURCE[2][0],
+    )
+
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[0][0],
+        TEST_EMBARGO_METADATA_RESOURCE[0][1],
+    )
+    assert pk == 1
+
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[1][0],
+        TEST_EMBARGO_METADATA_RESOURCE[1][1],
+    )
+    assert pk == 2
 
     pk = e_db.insert(
         TEST_EMBARGO_DATA_RESOURCE[0][0],
         TEST_EMBARGO_DATA_RESOURCE[0][1],
         datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[0][2])
     )
-    assert pk == 1
+    assert pk == 3
 
     pk = e_db.insert(
         TEST_EMBARGO_DATA_RESOURCE[1][0],
         TEST_EMBARGO_DATA_RESOURCE[1][1],
         datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[1][2])
     )
-    assert pk == 2
+    assert pk == 4
 
     pk = e_db.insert(
         TEST_EMBARGO_DATA_RESOURCE[2][0],
         TEST_EMBARGO_DATA_RESOURCE[2][1],
     )
+    assert pk == 5
+
+    embargoes = e_db.get_all_data_embargoes()
+    for embargo in embargoes:
+        assert embargo.rid in test_data_rids
+
+    embargoes = e_db.get_all_data_embargoes(ephemeral=True)
+    for embargo in embargoes:
+        assert embargo.rid in test_data_ephermeral_rids
+
+
+def test_get_all_ephemeral_embargoes(e_db, clean_up):
+    test_data_ephermeral_rids = (
+        TEST_EMBARGO_DATA_RESOURCE[0][0],
+        TEST_EMBARGO_DATA_RESOURCE[1][0],
+    )
+
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[0][0],
+        TEST_EMBARGO_METADATA_RESOURCE[0][1],
+    )
+    assert pk == 1
+
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[1][0],
+        TEST_EMBARGO_METADATA_RESOURCE[1][1],
+    )
+    assert pk == 2
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[0][0],
+        TEST_EMBARGO_DATA_RESOURCE[0][1],
+        datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[0][2])
+    )
     assert pk == 3
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[1][0],
+        TEST_EMBARGO_DATA_RESOURCE[1][1],
+        datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[1][2])
+    )
+    assert pk == 4
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[2][0],
+        TEST_EMBARGO_DATA_RESOURCE[2][1],
+    )
+    assert pk == 5
 
     embargoes = e_db.get_all_ephemeral_embargoes()
     for embargo in embargoes:
-        assert embargo.rid in test_ephermeral_rids
-
-    embargoes = e_db.get_all_ephemeral_embargoes(anti=True)
-    for embargo in embargoes:
-        assert embargo.rid in test_non_ephermeral_rids
+        assert embargo.rid in test_data_ephermeral_rids

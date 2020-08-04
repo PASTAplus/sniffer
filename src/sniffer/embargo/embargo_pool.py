@@ -168,7 +168,7 @@ class EmbargoPool:
         """
         verified_embargoes = self.verify_metadata_embargo()
 
-        package_embargoes = self._e_db.get_all_package_level_embargoes()
+        package_embargoes = self._e_db.get_all_package_embargoes()
         ignore_packages = list()
         for package_embargo in package_embargoes:
             ignore_packages.append(package_embargo.pid)
