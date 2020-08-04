@@ -24,6 +24,7 @@ from sqlalchemy import (
     ForeignKey,
     desc,
     asc,
+    update,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
@@ -63,7 +64,7 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
-    def get_all_package_level_embargoes(self):
+    def get_all_package_level_embargoes(self) -> Query:
         try:
             e = (
                 self.session.query(EmbargoedResource)
@@ -123,9 +124,9 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
-    def insert(self, rid: str, pid: str, created: datetime = None,) -> int:
+    def insert(self, rid: str, pid: str, date_ephemeral: datetime = None,) -> int:
         pk = None
-        e = EmbargoedResource(rid=rid, pid=pid, date_ephemeral=created)
+        e = EmbargoedResource(rid=rid, pid=pid, date_ephemeral=date_ephemeral)
         try:
             self.session.add(e)
             self.session.commit()
@@ -135,3 +136,10 @@ class EmbargoDB:
             self.session.rollback()
             raise ex
         return pk
+
+    def update_ephemeral_date(self, rid: str, date_ephemeral: datetime) -> Query:
+        e = self.get_by_rid(rid)
+        if e is not None:
+            e.date_ephemeral = date_ephemeral
+            self.session.commit()
+        return e

@@ -12,6 +12,7 @@
 :Created:
     7/31/20
 """
+from datetime import datetime
 from pathlib import Path
 
 import daiquiri
@@ -42,12 +43,31 @@ SQL_DATA_RESOURCES = (
     " AND access_type='deny'"
 )
 
+SQL_RESOURCE_CREATE_DATE = (
+    "SELECT datapackagemanager.resource_registry.date_created "
+    "FROM datapackagemanager.resource_registry WHERE "
+    "resource_id='<RID>'"
+)
+
 
 def entity_embargo_parse(eml: str):
     resources = list()
     tree = etree.fromstring(eml.encode("utf-8"))
     phys = tree.findall("./dataset//physical")
-
+    for p in phys:
+        distributions = p.findall("./distribution")
+        for distribution in distributions:
+            url = distribution.find("./online/url")
+            if url is not None:
+                denys = distribution.findall("./access/deny")
+                for deny in denys:
+                    principals = deny.findall("./principal")
+                    for principal in principals:
+                        if principal.text.strip() == "public":
+                            permissions = deny.findall("./permission")
+                            for permission in permissions:
+                                if permission.text.strip() == "read":
+                                    resources.append(url.text.strip())
     return resources
 
 
@@ -62,9 +82,19 @@ def generate_pid(resource: str) -> str:
 
 
 def pid_metadata(pid: str) -> str:
-    eml = None
-    scope, identifier, revision = pid.splite(".")
-    url =
+    scope, identifier, revision = pid.split(".")
+    url = f"{Config.PASTA_URL}/metadata/eml/{scope}/{identifier}/{revision}"
+    r = requests.get(url)
+    if r.status_code == requests.codes.ok:
+        eml = r.text
+    elif r.status_code == requests.codes.unauthorized:
+        eml = None
+    else:
+        msg = (
+            f"Error accessing {pid} metadata - response code: {r.status_code}"
+        )
+        raise ConnectionError(msg)
+    return eml
 
 
 class EmbargoPool:
@@ -74,8 +104,13 @@ class EmbargoPool:
         self._e_db = EmbargoDB(db_path)
 
     def add_new_embargoed_resources(self) -> int:
-        count = 0
+        """
+        Add embargoed PASTA+ resources to the Embargo Database
 
+        :return:
+            Count of embargoed resources
+        """
+        count = 0
         metadata_resources = pasta_data_package_manager_db.query(
             SQL_METADATA_RESOURCES
         )
@@ -100,9 +135,60 @@ class EmbargoPool:
                 msg = f"Ignoring resource '{data_resource}"
                 logger.warning(msg)
 
+        self.identify_ephemeral_embargoes()
+
         return count
 
-    def verify_metadata_embargo(self):
+    def verify_metadata_embargo(self) -> list:
+        """
+        Verify that the embargoed resource is identified in the metadata.
+
+        :return:
+            List of verified resources
+        """
+        resources = list()
         embargoed_pids = self._e_db.get_distinct_pids()
         for pid in embargoed_pids:
-            print(pid[0])
+            eml = pid_metadata(pid[0])
+            if eml is None:
+                msg = f"ACL for package {pid[0]} does not permit public read"
+                logger.warning(msg)
+            else:
+                resources += entity_embargo_parse(eml)
+        return resources
+
+    def identify_ephemeral_embargoes(self) -> int:
+        """
+        Identify embargoed resources that are classified as ephemeral; these
+        resources are identified by not having a corresponding metadata access
+        control "deny-read" rule for the "public" user.
+
+        :return:
+            Count of identified resources
+        """
+        verified_embargoes = self.verify_metadata_embargo()
+
+        package_embargoes = self._e_db.get_all_package_level_embargoes()
+        ignore_packages = list()
+        for package_embargo in package_embargoes:
+            ignore_packages.append(package_embargo.pid)
+
+        count = 0
+        embargoes = self._e_db.get_all()
+        for embargo in embargoes:
+            if (
+                embargo.pid not in ignore_packages
+                and embargo.rid not in verified_embargoes
+            ):
+                count += 1
+                dates = pasta_data_package_manager_db.query(
+                    SQL_RESOURCE_CREATE_DATE.replace("<RID>", embargo.rid)
+                )
+
+                msg = f"Found ephemeral embargo: {embargo.pid} - {embargo.rid}"
+                logger.info(msg)
+
+                for date in dates:
+                    self._e_db.update_ephemeral_date(embargo.rid, date[0])
+
+        return count

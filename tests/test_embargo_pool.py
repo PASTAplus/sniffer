@@ -112,5 +112,45 @@ def test_verify_metadata_embargo(embargo_pool, e_db, clean_up):
     )
     assert pk == 4
 
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[2][0],
+        TEST_EMBARGO_DATA_RESOURCE[2][1],
+    )
+    assert pk == 5
+
     embargo_pool.verify_metadata_embargo()
-    pass
+
+
+def test_identify_ephemeral_embargoes(embargo_pool, e_db, clean_up):
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[0][0],
+        TEST_EMBARGO_METADATA_RESOURCE[0][1],
+    )
+    assert pk == 1
+
+    pk = e_db.insert(
+        TEST_EMBARGO_METADATA_RESOURCE[1][0],
+        TEST_EMBARGO_METADATA_RESOURCE[1][1],
+    )
+    assert pk == 2
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[0][0],
+        TEST_EMBARGO_DATA_RESOURCE[0][1],
+    )
+    assert pk == 3
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[1][0],
+        TEST_EMBARGO_DATA_RESOURCE[1][1],
+    )
+    assert pk == 4
+
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[2][0],
+        TEST_EMBARGO_DATA_RESOURCE[2][1],
+    )
+    assert pk == 5
+
+    c = embargo_pool.identify_ephemeral_embargoes()
+    assert c == 2

@@ -196,3 +196,16 @@ def test_package_level_embargoes(e_db, clean_up):
     embargoes = e_db.get_all_package_level_embargoes()
     for embargo in embargoes:
         assert embargo.pid in test_pids
+
+
+def test_update_ephemeral_date(e_db, clean_up):
+    pk = e_db.insert(
+        TEST_EMBARGO_DATA_RESOURCE[0][0],
+        TEST_EMBARGO_DATA_RESOURCE[0][1],
+    )
+    assert pk == 1
+
+    now = datetime.now()
+    e = e_db.update_ephemeral_date(TEST_EMBARGO_DATA_RESOURCE[0][0], now)
+    assert e.date_ephemeral == now
+

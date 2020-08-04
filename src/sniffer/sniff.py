@@ -20,6 +20,7 @@ import daiquiri
 
 from sniffer.config import Config
 from sniffer.lock import Lock
+from sniffer.embargo.embargo_pool import EmbargoPool
 from sniffer.offline.offline_pool import OfflinePool
 from sniffer.package.package_pool import PackagePool
 
@@ -33,13 +34,15 @@ logger = daiquiri.getLogger(__name__)
 
 help_limit = "Query limit to PASTA+ resource registry."
 help_offline = "Sniff for offline data resources."
+help_embargo = "Sniff for embargoed resources."
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-l", "--limit", default=100, help=help_limit)
 @click.option("-o", "--offline", default=False, is_flag=True, help=help_offline)
-def main(limit: int, offline: bool):
+@click.option("-e", "--embargo", default=False, is_flag=True, help=help_embargo)
+def main(limit: int, offline: bool, embargo: bool):
     lock = Lock(Config.LOCK_FILE)
     if lock.locked:
         logger.error("Lock file {} exists, exiting...".format(lock.lock_file))
@@ -58,6 +61,10 @@ def main(limit: int, offline: bool):
     if offline:
         offline_pool = OfflinePool()
         offline_pool.add_new_offline_resources()
+
+    if embargo:
+        embargo_pool = EmbargoPool()
+        embargo_pool.add_new_embargoed_resources()
 
     lock.release()
     logger.info("Lock file {} released".format(lock.lock_file))
