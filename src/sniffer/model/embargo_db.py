@@ -68,7 +68,7 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
-    def get_all_data_embargoes(self, ephemeral: bool = False) -> Query:
+    def get_all_data_embargoes(self, ephemeral: bool = False):
         try:
             if ephemeral:
                 e = (
@@ -101,7 +101,7 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
-    def get_all_package_embargoes(self, ephemeral: bool = False) -> Query:
+    def get_all_package_embargoes(self, ephemeral: bool = False):
         try:
             if ephemeral:
                 e = (

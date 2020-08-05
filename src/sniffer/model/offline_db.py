@@ -56,7 +56,7 @@ class OfflineDB:
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-    def get_all(self) -> Query:
+    def get_all(self):
         try:
             o = (
                 self.session.query(OfflineResource)
