@@ -59,7 +59,11 @@ class EmbargoDB:
 
     def get_all(self) -> Query:
         try:
-            e = self.session.query(EmbargoedResource).all()
+            e = (
+                self.session.query(EmbargoedResource)
+                .order_by(EmbargoedResource.pid)
+                .all()
+            )
         except NoResultFound as ex:
             logger.error(ex)
         return e
@@ -70,6 +74,7 @@ class EmbargoDB:
                 e = (
                     self.session.query(EmbargoedResource)
                     .filter(EmbargoedResource.rid.like("%/data/eml/%"))
+                    .order_by(EmbargoedResource.pid)
                     .all()
                 )
             else:
@@ -77,6 +82,7 @@ class EmbargoDB:
                     self.session.query(EmbargoedResource)
                     .filter(EmbargoedResource.rid.like("%/data/eml/%"))
                     .filter(EmbargoedResource.date_ephemeral == None)
+                    .order_by(EmbargoedResource.pid)
                     .all()
                 )
         except NoResultFound as ex:
@@ -88,6 +94,7 @@ class EmbargoDB:
             e = (
                 self.session.query(EmbargoedResource)
                 .filter(EmbargoedResource.date_ephemeral != None)
+                .order_by(EmbargoedResource.pid)
                 .all()
             )
         except NoResultFound as ex:
@@ -100,6 +107,7 @@ class EmbargoDB:
                 e = (
                     self.session.query(EmbargoedResource)
                     .filter(EmbargoedResource.rid.like("%/metadata/eml/%"))
+                    .order_by(EmbargoedResource.pid)
                     .all()
                 )
             else:
@@ -107,6 +115,7 @@ class EmbargoDB:
                     self.session.query(EmbargoedResource)
                     .filter(EmbargoedResource.rid.like("%/metadata/eml/%"))
                     .filter(EmbargoedResource.date_ephemeral == None)
+                    .order_by(EmbargoedResource.pid)
                     .all()
                 )
         except NoResultFound as ex:
@@ -162,7 +171,9 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
-    def insert(self, rid: str, pid: str, date_ephemeral: datetime = None,) -> int:
+    def insert(
+        self, rid: str, pid: str, date_ephemeral: datetime = None,
+    ) -> int:
         pk = None
         e = EmbargoedResource(rid=rid, pid=pid, date_ephemeral=date_ephemeral)
         try:
@@ -175,7 +186,9 @@ class EmbargoDB:
             raise ex
         return pk
 
-    def update_ephemeral_date(self, rid: str, date_ephemeral: datetime) -> Query:
+    def update_ephemeral_date(
+        self, rid: str, date_ephemeral: datetime
+    ) -> Query:
         e = self.get_by_rid(rid)
         if e is not None:
             e.date_ephemeral = date_ephemeral

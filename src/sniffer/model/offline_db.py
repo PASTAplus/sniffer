@@ -58,7 +58,11 @@ class OfflineDB:
 
     def get_all(self) -> Query:
         try:
-            o = self.session.query(OfflineResource).all()
+            o = (
+                self.session.query(OfflineResource)
+                .order_by(OfflineResource.pid)
+                .all()
+            )
         except NoResultFound as ex:
             logger.error(ex)
         return o
@@ -86,9 +90,7 @@ class OfflineDB:
             logger.error(ex)
         return o
 
-    def insert(
-        self, pid: str, object_name: str, medium: str
-    ) -> int:
+    def insert(self, pid: str, object_name: str, medium: str) -> int:
         pk = None
         o = OfflineResource(pid=pid, object_name=object_name, medium=medium)
         try:
