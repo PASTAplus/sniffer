@@ -13,6 +13,7 @@
     7/28/20
 """
 from datetime import datetime
+from dateutil import tz
 
 import daiquiri
 from sqlalchemy import (
@@ -37,6 +38,7 @@ from sniffer.config import Config
 
 logger = daiquiri.getLogger(__name__)
 Base = declarative_base()
+ABQ_TZ = tz.gettz("America/Denver")
 
 
 class EmbargoedResource(Base):
@@ -46,6 +48,7 @@ class EmbargoedResource(Base):
     rid = Column(String(), unique=True)
     pid = Column(String(), nullable=False)
     date_ephemeral = Column(DateTime(), nullable=True, default=None)
+    days_ephemeral = Column(Integer(), nullable=True, default=None)
 
 
 class EmbargoDB:
@@ -189,8 +192,12 @@ class EmbargoDB:
     def update_ephemeral_date(
         self, rid: str, date_ephemeral: datetime
     ) -> Query:
+        dt_then = date_ephemeral.astimezone(tz=ABQ_TZ)
+        dt_now = datetime.now(tz=ABQ_TZ)
+        days = (dt_now - dt_then).days
         e = self.get_by_rid(rid)
         if e is not None:
             e.date_ephemeral = date_ephemeral
+            e.days_ephemeral = days
             self.session.commit()
         return e
