@@ -16,12 +16,34 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+import requests
 
 from sniffer.config import Config
 from sniffer.model.embargo_db import EmbargoDB
 import sniffer.embargo.embargo_pool as ep
 from sniffer.embargo.embargo_pool import EmbargoPool
+from sniffer.model.package_db import PackageDB
 
+TEST_PACKAGE_DATA = (
+    [
+        "edi.512.1",
+        datetime(2020, 5, 13, 13, 44, 42, 444000),
+        None,
+        "doi:10.6073/pasta/27dc02fe1655e3896f20326fed5cb95f"
+    ],
+    [
+        "edi.50.1",
+        datetime(2017, 8, 5, 16, 53, 58, 820000),
+        None,
+        "doi:10.6073/pasta/66c1cd4965e81612e93bf87f0dd0f33e"
+    ],
+    [
+        "knb-lter-kbs.140.5",
+        datetime(2018, 2, 14, 9, 4, 5, 131000),
+        None,
+        None
+    ]
+)
 
 TEST_EMBARGO_METADATA_RESOURCE = (
     [
@@ -49,24 +71,38 @@ TEST_EMBARGO_DATA_RESOURCE = (
         "https://pasta.lternet.edu/package/data/eml/knb-lter-fce/1210/4/c7d09464082a09ec5c232ee314a4f42a",
         "knb-lter-fce.1210.4",
     ],
+    [
+        "https://pasta.lternet.edu/package/data/eml/edi/50/1/a2adee56fd9c7285e546c53f50c368b4",
+        "edi.50.1",
+    ],
 )
 Config.PATH = Config.TEST_PATH
-db_path = Config.PATH + Config.EMBARGO_DB
+e_db_path = Config.PATH + Config.EMBARGO_DB
+p_db_path = Config.PATH + Config.PACKAGE_DB
+embargo_date_path = Config.PATH + Config.EMBARGO_DATE
 
 
 @pytest.fixture()
 def embargo_pool():
     return EmbargoPool()
 
+
 @pytest.fixture()
 def e_db():
-    return EmbargoDB(db_path)
+    return EmbargoDB(e_db_path)
+
+
+@pytest.fixture()
+def p_db():
+    return PackageDB(p_db_path)
 
 
 @pytest.fixture()
 def clean_up():
     yield
-    Path(db_path).unlink(missing_ok=True)
+    Path(e_db_path).unlink(missing_ok=True)
+    Path(p_db_path).unlink(missing_ok=True)
+    Path(embargo_date_path).unlink(missing_ok=True)
 
 
 def test_embargo_pool_instance(embargo_pool, e_db, clean_up):
@@ -154,3 +190,46 @@ def test_identify_ephemeral_embargoes(embargo_pool, e_db, clean_up):
 
     c = embargo_pool.identify_ephemeral_embargoes()
     assert c == 2
+
+
+def test_embargo_state(embargo_pool, e_db, clean_up):
+    state = ep.embargo_state(TEST_EMBARGO_METADATA_RESOURCE[1][0])
+    assert state is not None
+
+    state = ep.embargo_state(TEST_EMBARGO_DATA_RESOURCE[1][0])
+    assert state is not None
+
+    state = ep.embargo_state(TEST_EMBARGO_DATA_RESOURCE[3][0])
+    assert state is None
+
+
+def test_embargo_pool(p_db, embargo_pool, e_db, clean_up):
+    pk = p_db.insert(
+        TEST_PACKAGE_DATA[0][0],
+        TEST_PACKAGE_DATA[0][1],
+        TEST_PACKAGE_DATA[0][2],
+        TEST_PACKAGE_DATA[0][3],
+    )
+    assert pk == TEST_PACKAGE_DATA[0][0]
+
+    pk = p_db.insert(
+        TEST_PACKAGE_DATA[1][0],
+        TEST_PACKAGE_DATA[1][1],
+        TEST_PACKAGE_DATA[1][2],
+        TEST_PACKAGE_DATA[1][3],
+    )
+    assert pk == TEST_PACKAGE_DATA[1][0]
+
+    pk = p_db.insert(
+        TEST_PACKAGE_DATA[2][0],
+        TEST_PACKAGE_DATA[2][1],
+        TEST_PACKAGE_DATA[2][2],
+        TEST_PACKAGE_DATA[2][3],
+    )
+    assert pk == TEST_PACKAGE_DATA[2][0]
+
+    c = embargo_pool.add_new_embargoed_resources()
+    assert c == 4
+
+
+
