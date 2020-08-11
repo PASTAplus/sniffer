@@ -57,6 +57,7 @@ class OfflinePool:
         offline_date_path = Config.PATH + Config.OFFLINE_DATE
         from_date = last_date.read(offline_date_path)
         packages = self._package_pool.get_all_packages(from_date=from_date)
+        count = 0
         for package in packages:
             pid = package.pid.strip()
             scope, identifier, revision = pid.split(".")
@@ -81,11 +82,11 @@ class OfflinePool:
                         logger.info(
                             f"Adding offline resource: {pid}, {resource[0]}, {resource[1]}"
                         )
+                        count += 1
                 else:
                     logger.warn(
                         f"Ignoring {pid}: status code is {r.status_code}"
                     )
                 last_date.write(offline_date_path, package.date_created)
 
-        count = 0
         return count
