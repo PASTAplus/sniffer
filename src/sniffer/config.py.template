@@ -38,6 +38,7 @@ class Config:
 
     PASTA_URL = "https://pasta.lternet.edu/package/"
     METADATA_URL = PASTA_URL + "metadata/eml/<SCOPE>/<IDENTIFIER>/<REVISION>"
+    RESOURCE_URL = PASTA_URL + "eml/<SCOPE>/<IDENTIFIER>/<REVISION>"
 
     DN = <USER>
     PASSWORD = <PASSWORD>
