@@ -14,6 +14,7 @@
 """
 from datetime import datetime
 from pathlib import Path
+from typing import List, Tuple
 
 import daiquiri
 from lxml import etree
@@ -29,17 +30,34 @@ from sniffer.package.package_pool import PackagePool
 
 logger = daiquiri.getLogger(__name__)
 
-SQL_METADATA_RESOURCES = (
+SQL_METADATA_ACLS = (
     "SELECT datapackagemanager.access_matrix.resource_id "
     "FROM datapackagemanager.access_matrix WHERE "
-    "resource_id LIKE '%%/metadata/eml/%%'  AND principal='public' "
+    "resource_id LIKE '%%/metadata/eml/%%' AND principal='public' "
     " AND access_type='deny' AND permission='read'"
 )
 
+SQL_RESOURCE_ACLS = (
+    "SELECT datapackagemanager.access_matrix.resource_id, "
+    "datapackagemanager.access_matrix.principal, "
+    "datapackagemanager.access_matrix.access_type, "
+    "datapackagemanager.access_matrix.permission "
+    "FROM datapackagemanager.access_matrix WHERE "
+    "resource_id='<RESOURCE_ID>'"
+)
+
+
 SQL_DATA_RESOURCES = (
+    "SELECT datapackagemanager.resource_registry.resource_id "
+    "FROM datapackagemanager.resource_registry WHERE "
+    "resource_id LIKE '%%/data/eml/<SCOPE>/<IDENTIFIER>/<REVISION>/%%'"
+)
+
+
+SQL_DATA_ACLS = (
     "SELECT datapackagemanager.access_matrix.resource_id "
     "FROM datapackagemanager.access_matrix WHERE "
-    "resource_id LIKE '%%/data/eml/%%'  AND principal='public' "
+    "resource_id LIKE '%%/data/eml/%%' AND principal='public' "
     " AND access_type='deny' AND permission='read'"
 )
 
@@ -50,7 +68,7 @@ SQL_RESOURCE_CREATE_DATE = (
 )
 
 
-def entity_embargo_parse(eml: str):
+def entity_embargo_parse_for_explicit_public_deny(eml: str):
     resources = list()
     tree = etree.fromstring(eml.encode("utf-8"))
     phys = tree.findall("./dataset//physical")
@@ -81,6 +99,31 @@ def generate_pid(resource: str) -> str:
     return pid
 
 
+def embargo_state(resource_id: str) -> Tuple:
+    sql = SQL_RESOURCE_ACLS.replace("<RESOURCE_ID>", resource_id)
+    acls = pasta_data_package_manager_db.query(sql)
+    explicit = False
+    implicit = True
+    authenticated = False
+    for acl in acls:
+        if acl[1] == "public" and acl[2] == "deny" and acl[3] == "read":
+            explicit = True
+            implicit = False
+        elif acl[1] == "public" and acl[2] == "allow" and acl[3] == "read":
+            implicit = False
+        elif (
+            acl[1] == "authenticated"
+            and acl[2] == "allow"
+            and acl[3] == "read"
+        ):
+            authenticated = True
+    if explicit or implicit:
+        state = (explicit, authenticated)
+    else:
+        state = None
+    return state
+
+
 def pid_metadata(pid: str) -> str:
     scope, identifier, revision = pid.split(".")
     url = f"{Config.PASTA_URL}/metadata/eml/{scope}/{identifier}/{revision}"
@@ -100,8 +143,8 @@ def pid_metadata(pid: str) -> str:
 class EmbargoPool:
     def __init__(self):
         db_path = Config.PATH + Config.EMBARGO_DB
-        Path(db_path).unlink(missing_ok=True)  # Start fresh each execution
         self._e_db = EmbargoDB(db_path)
+        self._package_pool = PackagePool()
 
     def add_new_embargoed_resources(self) -> int:
         """
@@ -110,32 +153,64 @@ class EmbargoPool:
         :return:
             Count of embargoed resources
         """
+        dn = Config.DN
+        pw = Config.PASSWORD
+        r = requests.get(Config.PASTA_URL, auth=(dn, pw))
+        r.raise_for_status()
+        token = r.cookies["auth-token"]
+        cookies = {"auth-token": token}
+
+        embargo_date_path = Config.PATH + Config.EMBARGO_DATE
+        from_date = last_date.read(embargo_date_path)
+        packages = self._package_pool.get_all_packages(from_date=from_date)
         count = 0
-        metadata_resources = pasta_data_package_manager_db.query(
-            SQL_METADATA_RESOURCES
-        )
-        for metadata_resource in metadata_resources:
-            try:
-                pid = generate_pid(metadata_resource[0])
-                self._e_db.insert(rid=metadata_resource[0], pid=pid)
-                count += 1
-            except IntegrityError as ex:
-                msg = f"Ignoring resource '{metadata_resource}"
-                logger.warning(msg)
+        for package in packages:
+            pid = package.pid.strip()
+            scope, identifier, revision = pid.split(".")
+            if scope not in (
+                "ecotrends",
+                "lter-landsat",
+                "lter-landsat-ledaps",
+            ):
+                metadata_resource = (
+                    Config.METADATA_URL.replace("<SCOPE>", scope)
+                    .replace("<IDENTIFIER>", identifier)
+                    .replace("<REVISION>", revision)
+                )
+                state = embargo_state(metadata_resource)
+                if state is not None:
+                    self._e_db.insert(
+                        rid=metadata_resource,
+                        pid=pid,
+                        is_explicit=state[0],
+                        allows_authenticated=state[1],
+                    )
+                    count += 1
+                    msg = f"Adding embargoed resource: {metadata_resource}"
+                    logger.info(msg)
 
-        data_resources = pasta_data_package_manager_db.query(
-            SQL_DATA_RESOURCES
-        )
-        for data_resource in data_resources:
-            try:
-                pid = generate_pid(data_resource[0])
-                self._e_db.insert(rid=data_resource[0], pid=pid)
-                count += 1
-            except IntegrityError as ex:
-                msg = f"Ignoring resource '{data_resource}"
-                logger.warning(msg)
+                sql = (
+                    SQL_DATA_RESOURCES.replace("<SCOPE>", scope)
+                    .replace("<IDENTIFIER>", identifier)
+                    .replace("<REVISION>", revision)
+                )
+                data_resources = pasta_data_package_manager_db.query(sql)
+                for data_resource in data_resources:
+                    state = embargo_state(data_resource[0])
+                    if state is not None:
+                        self._e_db.insert(
+                            rid=data_resource[0],
+                            pid=pid,
+                            is_explicit=state[0],
+                            allows_authenticated=state[1],
+                        )
+                        msg = f"Adding embargoed resource: {data_resource}"
+                        logger.info(msg)
+                        count += 1
 
-        self.identify_ephemeral_embargoes()
+                last_date.write(embargo_date_path, package.date_created)
+
+        # self.identify_ephemeral_embargoes()
 
         return count
 
@@ -154,7 +229,7 @@ class EmbargoPool:
                 msg = f"ACL for package {pid[0]} does not permit public read"
                 logger.warning(msg)
             else:
-                resources += entity_embargo_parse(eml)
+                resources += entity_embargo_parse_for_explicit_public_deny(eml)
         return resources
 
     def identify_ephemeral_embargoes(self) -> int:
