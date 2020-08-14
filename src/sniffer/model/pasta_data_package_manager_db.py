@@ -24,7 +24,7 @@ from sniffer.config import Config
 logger = daiquiri.getLogger(__name__)
 
 
-def query(sql: str) -> ResultProxy:
+def query(sql: str):
     rs = None
     db = (
         Config.DB_DRIVER
@@ -37,13 +37,13 @@ def query(sql: str) -> ResultProxy:
         + "/"
         + Config.DB_DB
     )
-    connection = create_engine(db)
+    engine = create_engine(db)
     try:
-        rs = connection.execute(sql).fetchall()
+        with engine.connect() as connection:
+            rs = connection.execute(sql).fetchall()
     except NoResultFound as e:
         logger.warning(e)
-    except OperationalError as e:
-        logger.warning(e)
+        rs = list()
     except Exception as e:
         logger.error(e)
         raise e
