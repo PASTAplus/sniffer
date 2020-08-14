@@ -42,7 +42,13 @@ TEST_PACKAGE_DATA = (
         datetime(2018, 2, 14, 9, 4, 5, 131000),
         None,
         None
-    ]
+    ],
+    [
+        "knb-lter-knz.201.1",
+        datetime(2018, 2, 14, 9, 4, 5, 131000),
+        None,
+        None
+    ],
 )
 
 TEST_EMBARGO_METADATA_RESOURCE = (
@@ -192,44 +198,9 @@ def test_identify_ephemeral_embargoes(embargo_pool, e_db, clean_up):
     assert c == 2
 
 
-def test_embargo_state(embargo_pool, e_db, clean_up):
-    state = ep.embargo_state(TEST_EMBARGO_METADATA_RESOURCE[1][0])
-    assert state is not None
-
-    state = ep.embargo_state(TEST_EMBARGO_DATA_RESOURCE[1][0])
-    assert state is not None
-
-    state = ep.embargo_state(TEST_EMBARGO_DATA_RESOURCE[3][0])
-    assert state is None
-
-
 def test_embargo_pool(p_db, embargo_pool, e_db, clean_up):
-    pk = p_db.insert(
-        TEST_PACKAGE_DATA[0][0],
-        TEST_PACKAGE_DATA[0][1],
-        TEST_PACKAGE_DATA[0][2],
-        TEST_PACKAGE_DATA[0][3],
-    )
-    assert pk == TEST_PACKAGE_DATA[0][0]
-
-    pk = p_db.insert(
-        TEST_PACKAGE_DATA[1][0],
-        TEST_PACKAGE_DATA[1][1],
-        TEST_PACKAGE_DATA[1][2],
-        TEST_PACKAGE_DATA[1][3],
-    )
-    assert pk == TEST_PACKAGE_DATA[1][0]
-
-    pk = p_db.insert(
-        TEST_PACKAGE_DATA[2][0],
-        TEST_PACKAGE_DATA[2][1],
-        TEST_PACKAGE_DATA[2][2],
-        TEST_PACKAGE_DATA[2][3],
-    )
-    assert pk == TEST_PACKAGE_DATA[2][0]
-
     c = embargo_pool.add_new_embargoed_resources()
-    assert c == 4
+    assert c != 0
 
 
 
