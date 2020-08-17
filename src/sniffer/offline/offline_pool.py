@@ -46,14 +46,14 @@ class OfflinePool:
         self._o_db = OfflineDB(db_path)
         self._package_pool = PackagePool()
 
-    def add_new_offline_resources(self) -> int:
         dn = Config.DN
         pw = Config.PASSWORD
         r = requests.get(Config.PASTA_URL, auth=(dn, pw))
         r.raise_for_status()
         token = r.cookies["auth-token"]
-        cookies = {"auth-token": token}
+        self._cookies = {"auth-token": token}
 
+    def add_new_offline_resources(self) -> int:
         offline_date_path = Config.PATH + Config.OFFLINE_DATE
         from_date = last_date.read(offline_date_path)
         packages = self._package_pool.get_all_packages(from_date=from_date)
@@ -71,17 +71,17 @@ class OfflinePool:
                     .replace("<IDENTIFIER>", identifier)
                     .replace("<REVISION>", revision)
                 )
-                r = requests.get(metadata_url, cookies=cookies)
+                r = requests.get(metadata_url, cookies=self._cookies)
                 if r.status_code == requests.codes.ok:
                     logger.info(f"Parsing {pid}")
                     resources = offline_parse(r.text)
                     for resource in resources:
-                        self._o_db.insert(
-                            pid, resource[0], resource[1]
+                        self._o_db.insert(pid, resource[0], resource[1])
+                        msg = (
+                                f"Adding offline resource: {pid}, "
+                                f"{resource[0]}, {resource[1]}"
                         )
-                        logger.info(
-                            f"Adding offline resource: {pid}, {resource[0]}, {resource[1]}"
-                        )
+                        logger.info(msg)
                         count += 1
                 else:
                     logger.warn(
