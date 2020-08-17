@@ -23,7 +23,13 @@ from sqlalchemy.exc import IntegrityError
 
 from sniffer.config import Config
 import sniffer.last_date as last_date
-from sniffer.model.embargo_db import EmbargoDB
+from sniffer.model.embargo_db import (
+    EmbargoDB,
+    Authenticated,
+    Ephemeral,
+    Explicit,
+    Implicit,
+)
 from sniffer.model import pasta_data_package_manager_db
 from sniffer.package.package_pool import PackagePool
 
@@ -52,8 +58,14 @@ SQL_RESOURCE_CREATE_DATE = (
     "resource_id='<RID>'"
 )
 
+SQL_ENTITY_LIST = (
+    "SELECT datapackagemanager.resource_regsistry.resource_id FROM "
+    "datapackagemanager.resource_registry WHERE package_id='<PID>' "
+    "AND resource_type='data'"
+)
 
-def entity_embargo_parse_for_explicit_public_deny(eml: str):
+
+def entity_parse_for_explicit_public_deny(eml: str) -> List:
     resources = list()
     tree = etree.fromstring(eml.encode("utf-8"))
     phys = tree.findall("./dataset//physical")
@@ -74,6 +86,35 @@ def entity_embargo_parse_for_explicit_public_deny(eml: str):
     return resources
 
 
+def entity_parse_for_implicit_public_deny(eml: str) -> List:
+    resources = list()
+    tree = etree.fromstring(eml.encode("utf-8"))
+    phys = tree.findall("./dataset//physical")
+    for p in phys:
+        distributions = p.findall("./distribution")
+        for distribution in distributions:
+            url = distribution.find("./online/url")
+            if url is not None:
+                access = distribution.find("./access")
+                if access is not None:
+                    implicit = True
+                    allows = access.findall("./allow")
+                    for allow in allows:
+                        principals = allow.findall("./principal")
+                        for principal in principals:
+                            if principal.text.strip() == "public":
+                                permissions = allow.findall("./permission")
+                                for permission in permissions:
+                                    if permission.text.strip() == "read":
+                                        implicit = False
+                else:
+                    implicit = False
+                if implicit:
+                    resources.append(url.text.strip())
+
+    return resources
+
+
 def generate_pid(resource: str) -> str:
     metadata = "https://pasta.lternet.edu/package/metadata/eml/"
     data = "https://pasta.lternet.edu/package/data/eml/"
@@ -84,19 +125,30 @@ def generate_pid(resource: str) -> str:
     return pid
 
 
+def pid_metadata(pid: str, authenticated=False) -> str:
+    scope, identifier, revision = pid.split(".")
+    url = f"{Config.PASTA_URL}metadata/eml/{scope}/{identifier}/{revision}"
+    if authenticated:
+        dn = Config.DN
+        pw = Config.PASSWORD
+        r = requests.get(url, auth=(dn, pw))
+    else:
+        r = requests.get(url)
+    if r.status_code == requests.codes.ok:
+        eml = r.text
+    elif r.status_code == requests.codes.unauthorized:
+        eml = None
+    else:
+        msg = f"Error accessing {pid} metadata - response code: {r.status_code}"
+        raise ConnectionError(msg)
+    return eml
+
+
 class EmbargoPool:
     def __init__(self):
         db_path = Config.PATH + Config.EMBARGO_DB
-        Path(db_path).unlink(missing_ok=True)
         self._e_db = EmbargoDB(db_path)
         self._package_pool = PackagePool()
-
-        dn = Config.DN
-        pw = Config.PASSWORD
-        r = requests.get(Config.PASTA_URL, auth=(dn, pw))
-        r.raise_for_status()
-        token = r.cookies["auth-token"]
-        self._cookies = {"auth-token": token}
 
     def add_new_embargoed_resources(self) -> int:
         """
@@ -106,41 +158,34 @@ class EmbargoPool:
             Count of embargoed resources
         """
         count = 0
-        explicit_resources = pasta_data_package_manager_db.query(SQL_EXPLICIT)
-        for explicit_resource in explicit_resources:
+        count += self.add_explicit_resources()
+        count += self.add_ephemeral_resources()
+        count += self.add_authenticated_resources()
+        count += self.add_implicit_resources()
+        return count
+
+    def add_authenticated_resources(self) -> int:
+        count = 0
+        self._e_db.delete_all(table=Authenticated)
+
+        authenticated_resources = pasta_data_package_manager_db.query(
+            SQL_AUTHENTICATED
+        )
+        for authenticated_resource in authenticated_resources:
             try:
-                pid = generate_pid(explicit_resource[0])
+                pid = generate_pid(authenticated_resource[0])
                 self._e_db.insert(
-                    rid=explicit_resource[0], pid=pid, is_explicit=True
+                    rid=authenticated_resource[0], pid=pid, table=Authenticated
                 )
                 count += 1
             except IntegrityError as ex:
-                msg = f"Ignoring resource '{explicit_resource[0]}"
+                msg = f"Ignoring resource '{authenticated_resource[0]}"
                 logger.warning(msg)
 
-        self.identify_ephemeral_embargoes()
-
+        logger.info(f"Found {count} authenticated embargoes")
         return count
 
-    def verify_metadata_embargo(self) -> list:
-        """
-        Verify that the embargoed resource is identified in the metadata.
-
-        :return:
-            List of verified resources
-        """
-        resources = list()
-        embargoed_pids = self._e_db.get_distinct_pids()
-        for pid in embargoed_pids:
-            eml = self.pid_metadata(pid[0])
-            if eml is None:
-                msg = f"ACL for package {pid[0]} does not permit public read"
-                logger.warning(msg)
-            else:
-                resources += entity_embargo_parse_for_explicit_public_deny(eml)
-        return resources
-
-    def identify_ephemeral_embargoes(self) -> int:
+    def add_ephemeral_resources(self) -> int:
         """
         Identify embargoed resources that are classified as ephemeral; these
         resources are identified by not having a corresponding metadata access
@@ -149,15 +194,16 @@ class EmbargoPool:
         :return:
             Count of identified resources
         """
-        verified_embargoes = self.verify_metadata_embargo()
+        count = 0
+        self._e_db.delete_all(table=Ephemeral)
 
-        package_embargoes = self._e_db.get_all_package_embargoes()
+        package_embargoes = self._e_db.get_all_metadata(table=Explicit)
         ignore_packages = list()
         for package_embargo in package_embargoes:
             ignore_packages.append(package_embargo.pid)
 
-        count = 0
-        embargoes = self._e_db.get_all()
+        verified_embargoes = self.verify_metadata_embargo()
+        embargoes = self._e_db.get_all(table=Explicit)
         for embargo in embargoes:
             if (
                 embargo.pid not in ignore_packages
@@ -169,25 +215,96 @@ class EmbargoPool:
                 )
 
                 msg = f"Found ephemeral embargo: {embargo.pid} - {embargo.rid}"
-                logger.info(msg)
+                logger.debug(msg)
 
                 for date in dates:
-                    self._e_db.update_ephemeral_date(embargo.rid, date[0])
+                    self._e_db.insert(
+                        rid=embargo.rid,
+                        pid=embargo.pid,
+                        table=Ephemeral,
+                        date_ephemeral=date[0],
+                    )
+
+        logger.info(f"Found {count} ephemeral embargoes")
+        return count
+
+    def add_explicit_resources(self) -> int:
+        count = 0
+        self._e_db.delete_all(table=Explicit)
+
+        explicit_resources = pasta_data_package_manager_db.query(SQL_EXPLICIT)
+        for explicit_resource in explicit_resources:
+            try:
+                pid = generate_pid(explicit_resource[0])
+                self._e_db.insert(
+                    rid=explicit_resource[0], pid=pid, table=Explicit
+                )
+                count += 1
+            except IntegrityError as ex:
+                msg = f"Ignoring resource '{explicit_resource[0]}"
+                logger.warning(msg)
+
+        logger.info(f"Found {count} explicit embargoes")
+        return count
+
+    def add_implicit_resources(self) -> int:
+        embargo_date_path = Config.PATH + Config.EMBARGO_DATE
+        from_date = last_date.read(embargo_date_path)
+        packages = self._package_pool.get_all_packages(from_date=from_date)
+        count = 0
+        for package in packages:
+            pid = package.pid.strip()
+            scope, identifier, revision = pid.split(".")
+            if scope not in (
+                "ecotrends",
+                "lter-landsat",
+                "lter-landsat-ledaps",
+            ):
+                eml = pid_metadata(pid)
+                msg = f"Testing package for implicit entity embargo(s): {pid}"
+                logger.info(msg)
+                if eml is not None:
+                    resources = entity_parse_for_implicit_public_deny(eml)
+                    for resource in resources:
+                        self._e_db.insert(rid=resource, pid=pid, table=Implicit)
+                        msg = (
+                                f"Adding implicit resource: {pid}, "
+                                f"{resource}, {resource[1]}"
+                        )
+                        logger.warning(msg)
+                        count += 1
+                else:
+                    logger.warn(f"Package is not public read: {pid}")
+                    entities = pasta_data_package_manager_db.query(
+                        SQL_ENTITY_LIST
+                    )
+                    for entity in entities:
+                        self._e_db.insert(
+                            rid=entity[0],
+                            pid=pid,
+                            table=Implicit
+                        )
+
+                last_date.write(embargo_date_path, package.date_created)
 
         return count
 
-    def pid_metadata(self, pid: str) -> str:
-        scope, identifier, revision = pid.split(".")
-        url = f"{Config.PASTA_URL}/metadata/eml/{scope}/{identifier}/{revision}"
-        r = requests.get(url, self._cookies)
-        if r.status_code == requests.codes.ok:
-            eml = r.text
-        elif r.status_code == requests.codes.unauthorized:
-            eml = None
-        else:
-            msg = (
-                f"Error accessing {pid} metadata - response code: {r.status_code}"
-            )
-            raise ConnectionError(msg)
-        return eml
+    def verify_metadata_embargo(self) -> list:
+        """
+        Verify that the embargoed resource is identified in the metadata.
+
+        :return:
+            List of verified resources
+        """
+        resources = list()
+        embargoed_pids = self._e_db.get_distinct_pids(table=Explicit)
+        for embargoed_pid in embargoed_pids:
+            pid = embargoed_pid.pid
+            eml = pid_metadata(pid, authenticated=True)
+            if eml is None:
+                msg = f"ACL for package {pid} does not permit public read"
+                logger.warning(msg)
+            else:
+                resources += entity_parse_for_explicit_public_deny(eml)
+        return resources
 

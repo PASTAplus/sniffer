@@ -18,20 +18,22 @@ from pathlib import Path
 import pytest
 
 from sniffer.config import Config
-from sniffer.model.embargo_db import EmbargoDB, EmbargoedResource
+from sniffer.model.embargo_db import (
+    EmbargoDB,
+    Authenticated,
+    Ephemeral,
+    Explicit,
+    Implicit,
+)
 
 TEST_EMBARGO_METADATA_RESOURCE = (
     [
         "https://pasta.lternet.edu/package/metadata/eml/knb-lter-fce/1210/3",
         "knb-lter-fce.1210.3",
-        True,
-        False
     ],
     [
         "https://pasta.lternet.edu/package/metadata/eml/knb-lter-kbs/140/5",
         "knb-lter-kbs.140.5",
-        False,
-        True
     ],
 )
 
@@ -39,22 +41,16 @@ TEST_EMBARGO_DATA_RESOURCE = (
     [
         "https://pasta.lternet.edu/package/data/eml/edi/512/1/bb87318745d9b83f102aa0a58e9b5386",
         "edi.512.1",
-        True,
-        False,
         "2020-05-13 13:44:41.369000",
     ],
     [
         "https://pasta.lternet.edu/package/data/eml/edi/512/1/c858be23bac4b5f93b830bcbdac6ba2c",
         "edi.512.1",
-        True,
-        False,
         "2020-05-13 13:44:40.776000",
     ],
     [
         "https://pasta.lternet.edu/package/data/eml/knb-lter-fce/1210/4/c7d09464082a09ec5c232ee314a4f42a",
         "knb-lter-fce.1210.4",
-        False,
-        True
     ],
 )
 Config.PATH = Config.TEST_PATH
@@ -72,367 +68,194 @@ def clean_up():
     Path(db_path).unlink(missing_ok=True)
 
 
-def test_pasta_db_connection():
+def test_embargo_db_connection(e_db, clean_up):
     pass
 
 
-def test_resource_pool_create(e_db, clean_up):
-    assert Path(db_path).exists()
-    embargoes = e_db.get_all()
-    assert embargoes is not None
-
-
-def test_get_by_id(e_db, clean_up):
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[0][0],
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
-    )
-    assert pk == 1
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[0][0], TEST_EMBARGO_DATA_RESOURCE[0][1]
-    )
-    assert pk == 2
-
-    e = e_db.get_by_id(id=1)
-    assert isinstance(e, EmbargoedResource)
-    assert e.rid == TEST_EMBARGO_METADATA_RESOURCE[0][0]
-    assert e.pid == TEST_EMBARGO_METADATA_RESOURCE[0][1]
-
-
-def test_insert_embargoed_resource(e_db, clean_up):
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[0][0],
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
-    )
-    assert pk == 1
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[0][0], TEST_EMBARGO_DATA_RESOURCE[0][1]
-    )
-    assert pk == 2
-
-
-def test_ephemeral_date(e_db, clean_up):
-    pk = e_db.insert(
-        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
-        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[0][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[0][3],
-        date_ephemeral=datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[0][4])
-    )
-    assert pk == 1
-    e = e_db.get_by_id(pk)
-    assert e.date_ephemeral == datetime.fromisoformat(
-        TEST_EMBARGO_DATA_RESOURCE[0][4]
-    )
-
-    pk = e_db.insert(
-        rid=TEST_EMBARGO_DATA_RESOURCE[1][0],
-        pid=TEST_EMBARGO_DATA_RESOURCE[1][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[1][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[1][3],
-        date_ephemeral=datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[1][4]),
-    )
-    assert pk == 2
-    e = e_db.get_by_id(pk)
-    assert e.date_ephemeral == datetime.fromisoformat(
-        TEST_EMBARGO_DATA_RESOURCE[1][4]
-    )
-
-
-def test_distinct_pids(e_db, clean_up):
-    test_pids = (
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
-        TEST_EMBARGO_METADATA_RESOURCE[1][1],
-        TEST_EMBARGO_DATA_RESOURCE[1][1],
-    )
-
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[0][0],
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
-    )
-    assert pk == 1
-
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[1][0],
-        TEST_EMBARGO_METADATA_RESOURCE[1][1],
-    )
-    assert pk == 2
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[0][0],
-        TEST_EMBARGO_DATA_RESOURCE[0][1],
-    )
-    assert pk == 3
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[1][0],
-        TEST_EMBARGO_DATA_RESOURCE[1][1],
-    )
-    assert pk == 4
-
-    pids = e_db.get_distinct_pids()
-    for pid in pids:
-        assert pid[0] in test_pids
-
-
-def test_package_level_embargoes(e_db, clean_up):
-    test_pids = (
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
-        TEST_EMBARGO_METADATA_RESOURCE[1][1],
-    )
-
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[0][0],
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
-    )
-    assert pk == 1
-
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[1][0],
-        TEST_EMBARGO_METADATA_RESOURCE[1][1],
-    )
-    assert pk == 2
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[0][0],
-        TEST_EMBARGO_DATA_RESOURCE[0][1],
-    )
-    assert pk == 3
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[1][0],
-        TEST_EMBARGO_DATA_RESOURCE[1][1],
-    )
-    assert pk == 4
-
-    embargoes = e_db.get_all_package_embargoes()
-    for embargo in embargoes:
-        assert embargo.pid in test_pids
-
-
-def test_update_ephemeral_date(e_db, clean_up):
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[0][0],
-        TEST_EMBARGO_DATA_RESOURCE[0][1],
-    )
-    assert pk == 1
-
-    now = datetime.now()
-    e = e_db.update_ephemeral_date(TEST_EMBARGO_DATA_RESOURCE[0][0], now)
-    assert e.date_ephemeral == now
-
-
-def test_get_all_data_embargoes(e_db, clean_up):
-    test_data_rids = (
-        TEST_EMBARGO_DATA_RESOURCE[2][0],
-    )
-    test_data_ephemeral_rids = (
-        TEST_EMBARGO_DATA_RESOURCE[0][0],
-        TEST_EMBARGO_DATA_RESOURCE[1][0],
-        TEST_EMBARGO_DATA_RESOURCE[2][0],
-    )
-
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[0][0],
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
-    )
-    assert pk == 1
-
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[1][0],
-        TEST_EMBARGO_METADATA_RESOURCE[1][1],
-    )
-    assert pk == 2
-
-    pk = e_db.insert(
-        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
-        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[0][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[0][3],
-        date_ephemeral=datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[0][4])
-    )
-    assert pk == 3
-
-    pk = e_db.insert(
-        rid=TEST_EMBARGO_DATA_RESOURCE[1][0],
-        pid=TEST_EMBARGO_DATA_RESOURCE[1][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[1][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[1][3],
-        date_ephemeral=datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[1][4])
-    )
-    assert pk == 4
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[2][0],
-        TEST_EMBARGO_DATA_RESOURCE[2][1],
-    )
-    assert pk == 5
-
-    embargoes = e_db.get_all_data_embargoes()
-    for embargo in embargoes:
-        assert embargo.rid in test_data_rids
-
-    embargoes = e_db.get_all_data_embargoes(ephemeral=True)
-    for embargo in embargoes:
-        assert embargo.rid in test_data_ephemeral_rids
-
-
-def test_get_all_data_embargoes_explicit_implicit(e_db, clean_up):
-    test_data_explicit_rids = (
-        TEST_EMBARGO_DATA_RESOURCE[0][0],
-        TEST_EMBARGO_DATA_RESOURCE[1][0],
-    )
-
-    test_data_implicit_rids = (
-        TEST_EMBARGO_DATA_RESOURCE[2][0],
-    )
-
+def test_insert_authenticated(e_db, clean_up):
     pk = e_db.insert(
         rid=TEST_EMBARGO_METADATA_RESOURCE[0][0],
         pid=TEST_EMBARGO_METADATA_RESOURCE[0][1],
-        is_explicit=TEST_EMBARGO_METADATA_RESOURCE[0][2],
-        allows_authenticated=TEST_EMBARGO_METADATA_RESOURCE[0][3],
+        table=Authenticated,
     )
     assert pk == 1
 
     pk = e_db.insert(
-        rid=TEST_EMBARGO_METADATA_RESOURCE[1][0],
-        pid=TEST_EMBARGO_METADATA_RESOURCE[1][1],
-        is_explicit=TEST_EMBARGO_METADATA_RESOURCE[1][2],
-        allows_authenticated=TEST_EMBARGO_METADATA_RESOURCE[1][3],
+        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
+        table=Authenticated,
     )
     assert pk == 2
 
     pk = e_db.insert(
-        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
-        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[0][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[0][3],
+        rid=TEST_EMBARGO_DATA_RESOURCE[1][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[1][1],
+        table=Authenticated,
     )
     assert pk == 3
+
+
+def test_insert_ephemeral(e_db, clean_up):
+    pk = e_db.insert(
+        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
+        table=Ephemeral,
+        date_ephemeral=datetime.fromisoformat(
+            TEST_EMBARGO_DATA_RESOURCE[0][2]
+        ),
+    )
+    assert pk == 1
 
     pk = e_db.insert(
         rid=TEST_EMBARGO_DATA_RESOURCE[1][0],
         pid=TEST_EMBARGO_DATA_RESOURCE[1][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[1][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[1][3],
+        table=Ephemeral,
+        date_ephemeral=datetime.fromisoformat(
+            TEST_EMBARGO_DATA_RESOURCE[1][2]
+        ),
     )
-    assert pk == 4
-
-    pk = e_db.insert(
-        rid=TEST_EMBARGO_DATA_RESOURCE[2][0],
-        pid=TEST_EMBARGO_DATA_RESOURCE[2][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[2][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[2][3]
-    )
-    assert pk == 5
-
-    embargoes = e_db.get_all_data_embargoes_explicit()
-    assert len(embargoes) == 2
-    for embargo in embargoes:
-        assert embargo.rid in test_data_explicit_rids
-
-    embargoes = e_db.get_all_data_embargoes_implicit()
-    assert len(embargoes) == 1
-    for embargo in embargoes:
-        assert embargo.rid in test_data_implicit_rids
+    assert pk == 2
 
 
-def test_get_all_data_embargoes_allows_authenticated(e_db, clean_up):
-    test_data_allows_authenticated_rids = (
-        TEST_EMBARGO_DATA_RESOURCE[2][0],
-    )
-
+def test_insert_explicit(e_db, clean_up):
     pk = e_db.insert(
         rid=TEST_EMBARGO_METADATA_RESOURCE[0][0],
         pid=TEST_EMBARGO_METADATA_RESOURCE[0][1],
-        is_explicit=TEST_EMBARGO_METADATA_RESOURCE[0][2],
-        allows_authenticated=TEST_EMBARGO_METADATA_RESOURCE[0][3]
+        table=Explicit,
     )
     assert pk == 1
 
     pk = e_db.insert(
-        rid=TEST_EMBARGO_METADATA_RESOURCE[1][0],
-        pid=TEST_EMBARGO_METADATA_RESOURCE[1][1],
-        is_explicit=TEST_EMBARGO_METADATA_RESOURCE[1][2],
-        allows_authenticated=TEST_EMBARGO_METADATA_RESOURCE[1][3]
+        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
+        table=Explicit,
     )
     assert pk == 2
 
     pk = e_db.insert(
-        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
-        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[0][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[0][3]
+        rid=TEST_EMBARGO_DATA_RESOURCE[1][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[1][1],
+        table=Explicit,
     )
     assert pk == 3
 
+
+def test_insert_implicit(e_db, clean_up):
     pk = e_db.insert(
-        rid=TEST_EMBARGO_DATA_RESOURCE[1][0],
-        pid=TEST_EMBARGO_DATA_RESOURCE[1][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[1][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[1][3]
-    )
-    assert pk == 4
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[2][0],
-        TEST_EMBARGO_DATA_RESOURCE[2][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[2][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[2][3]
-    )
-    assert pk == 5
-
-    embargoes = e_db.get_all_data_embargoes_allows_authenticated()
-    assert len(embargoes) == 1
-    for embargo in embargoes:
-        assert embargo.rid in test_data_allows_authenticated_rids
-
-
-def test_get_all_ephemeral_embargoes(e_db, clean_up):
-    test_data_ephemeral_rids = (
-        TEST_EMBARGO_DATA_RESOURCE[0][0],
-        TEST_EMBARGO_DATA_RESOURCE[1][0],
-    )
-
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[0][0],
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
+        rid=TEST_EMBARGO_METADATA_RESOURCE[0][0],
+        pid=TEST_EMBARGO_METADATA_RESOURCE[0][1],
+        table=Implicit,
     )
     assert pk == 1
 
     pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[1][0],
-        TEST_EMBARGO_METADATA_RESOURCE[1][1],
+        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
+        table=Implicit,
     )
     assert pk == 2
 
     pk = e_db.insert(
-        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
-        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[0][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[0][3],
-        date_ephemeral=datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[0][4])
+        rid=TEST_EMBARGO_DATA_RESOURCE[1][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[1][1],
+        table=Implicit,
     )
     assert pk == 3
+
+
+def test_get_resources(e_db, clean_up):
+    pk = e_db.insert(
+        rid=TEST_EMBARGO_METADATA_RESOURCE[0][0],
+        pid=TEST_EMBARGO_METADATA_RESOURCE[0][1],
+        table=Implicit,
+    )
+    assert pk == 1
+
+    pk = e_db.insert(
+        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
+        table=Implicit,
+    )
+    assert pk == 2
 
     pk = e_db.insert(
         rid=TEST_EMBARGO_DATA_RESOURCE[1][0],
         pid=TEST_EMBARGO_DATA_RESOURCE[1][1],
-        is_explicit=TEST_EMBARGO_DATA_RESOURCE[1][2],
-        allows_authenticated=TEST_EMBARGO_DATA_RESOURCE[1][3],
-        date_ephemeral=datetime.fromisoformat(TEST_EMBARGO_DATA_RESOURCE[1][4])
+        table=Implicit,
     )
-    assert pk == 4
+    assert pk == 3
+
+    resources = e_db.get_all(table=Implicit)
+    for resource in resources:
+        assert resource.rid in (
+            TEST_EMBARGO_METADATA_RESOURCE[0][0],
+            TEST_EMBARGO_DATA_RESOURCE[0][0],
+            TEST_EMBARGO_DATA_RESOURCE[1][0],
+        )
+
+    resources = e_db.get_all_metadata(table=Implicit)
+    for resource in resources:
+        assert resource.rid == TEST_EMBARGO_METADATA_RESOURCE[0][0]
+
+    resources = e_db.get_all_data(table=Implicit)
+    for resource in resources:
+        assert resource.rid in (
+            TEST_EMBARGO_DATA_RESOURCE[0][0],
+            TEST_EMBARGO_DATA_RESOURCE[1][0],
+        )
+
+    resources = e_db.get_distinct_pids(table=Implicit)
+    for resource in resources:
+        assert resource.pid in (
+            TEST_EMBARGO_METADATA_RESOURCE[0][1],
+            TEST_EMBARGO_DATA_RESOURCE[1][1],
+        )
+
+    count = e_db.get_count(table=Implicit)
+    assert count == 3
+
+    resource = e_db.get_by_id(id=2, table=Implicit)
+    assert resource.id == 2
+    assert resource.rid == TEST_EMBARGO_DATA_RESOURCE[0][0]
+
+    resources = e_db.get_by_pid(pid="edi.512.1", table=Implicit)
+    for resource in resources:
+        assert resource.rid in (
+            TEST_EMBARGO_DATA_RESOURCE[0][0],
+            TEST_EMBARGO_DATA_RESOURCE[1][0],
+        )
+
+    resource = e_db.get_by_rid(
+        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
+        table=Implicit
+    )
+    assert resource.rid == TEST_EMBARGO_DATA_RESOURCE[0][0]
+
+
+def test_delete_all(e_db, clean_up):
+    pk = e_db.insert(
+        rid=TEST_EMBARGO_METADATA_RESOURCE[0][0],
+        pid=TEST_EMBARGO_METADATA_RESOURCE[0][1],
+        table=Implicit,
+    )
+    assert pk == 1
 
     pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[2][0],
-        TEST_EMBARGO_DATA_RESOURCE[2][1],
+        rid=TEST_EMBARGO_DATA_RESOURCE[0][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[0][1],
+        table=Implicit,
     )
-    assert pk == 5
+    assert pk == 2
 
-    embargoes = e_db.get_all_ephemeral_embargoes()
-    for embargo in embargoes:
-        assert embargo.rid in test_data_ephemeral_rids
+    pk = e_db.insert(
+        rid=TEST_EMBARGO_DATA_RESOURCE[1][0],
+        pid=TEST_EMBARGO_DATA_RESOURCE[1][1],
+        table=Implicit,
+    )
+    assert pk == 3
+
+    count = e_db.get_count(table=Implicit)
+    assert count == 3
+    e_db.delete_all(table=Implicit)
+    count = e_db.get_count(table=Implicit)
+    assert count == 0

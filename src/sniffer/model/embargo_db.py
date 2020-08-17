@@ -41,16 +41,46 @@ Base = declarative_base()
 ABQ_TZ = tz.gettz("America/Denver")
 
 
-class EmbargoedResource(Base):
-    __tablename__ = "embargoed_resources"
+class Resource(Base):
+    __tablename__ = "resources"
 
     id = Column(Integer(), primary_key=True)
     rid = Column(String(), unique=True)
     pid = Column(String(), nullable=False)
-    is_explicit = Column(Boolean(), nullable=False, default=False)
-    allows_authenticated = Column(Boolean(), nullable=False, default=False)
+
+
+class Authenticated(Base):
+    __tablename__ = "authenticated"
+
+    id = Column(Integer(), primary_key=True)
+    rid = Column(String(), unique=True)
+    pid = Column(String(), nullable=False)
+
+
+class Ephemeral(Base):
+    __tablename__ = "ephemeral"
+
+    id = Column(Integer(), primary_key=True)
+    rid = Column(String(), unique=True)
+    pid = Column(String(), nullable=False)
     date_ephemeral = Column(DateTime(), nullable=True, default=None)
     days_ephemeral = Column(Integer(), nullable=True, default=None)
+
+
+class Explicit(Base):
+    __tablename__ = "explicit"
+
+    id = Column(Integer(), primary_key=True)
+    rid = Column(String(), unique=True)
+    pid = Column(String(), nullable=False)
+
+
+class Implicit(Base):
+    __tablename__ = "implicit"
+
+    id = Column(Integer(), primary_key=True)
+    rid = Column(String(), unique=True)
+    pid = Column(String(), nullable=False)
 
 
 class EmbargoDB:
@@ -62,197 +92,93 @@ class EmbargoDB:
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-    def get_all(self) -> Query:
+    def delete_all(self, table):
+        try:
+            e = self.session.query(table).delete()
+            self.session.commit()
+        except NoResultFound as ex:
+            logger.error(ex)
+
+    def get_all(self, table) -> Query:
         try:
             e = (
-                self.session.query(EmbargoedResource)
-                .order_by(EmbargoedResource.pid)
+                self.session.query(table)
+                .order_by(table.pid)
                 .all()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_all_data_embargoes(self, ephemeral: bool = False):
-        try:
-            if ephemeral:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(EmbargoedResource.rid.like("%/data/eml/%"))
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
-            else:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(
-                        EmbargoedResource.rid.like("%/data/eml/%"),
-                        EmbargoedResource.date_ephemeral == None,
-                    )
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
-        except NoResultFound as ex:
-            logger.error(ex)
-        return e
-
-    def get_all_data_embargoes_allows_authenticated(self, ephemeral: bool = False):
-        try:
-            if ephemeral:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(
-                        EmbargoedResource.rid.like("%/data/eml/%"),
-                        EmbargoedResource.allows_authenticated,
-                    )
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
-            else:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(
-                        EmbargoedResource.rid.like("%/data/eml/%"),
-                        EmbargoedResource.allows_authenticated,
-                        EmbargoedResource.date_ephemeral == None,
-                    )
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
-        except NoResultFound as ex:
-            logger.error(ex)
-        return e
-
-    def get_all_data_embargoes_explicit(self, ephemeral: bool = False):
-        try:
-            if ephemeral:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(
-                        EmbargoedResource.rid.like("%/data/eml/%"),
-                        EmbargoedResource.is_explicit,
-                    )
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
-            else:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(
-                        EmbargoedResource.rid.like("%/data/eml/%"),
-                        EmbargoedResource.is_explicit,
-                        EmbargoedResource.date_ephemeral == None,
-                    )
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
-        except NoResultFound as ex:
-            logger.error(ex)
-        return e
-
-    def get_all_data_embargoes_implicit(self, ephemeral: bool = False):
-        try:
-            if ephemeral:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(
-                        EmbargoedResource.rid.like("%/data/eml/%"),
-                        EmbargoedResource.is_explicit == False,
-                    )
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
-            else:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(
-                        EmbargoedResource.rid.like("%/data/eml/%"),
-                        EmbargoedResource.is_explicit == False,
-                        EmbargoedResource.date_ephemeral == None,
-                    )
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
-        except NoResultFound as ex:
-            logger.error(ex)
-        return e
-
-    def get_all_ephemeral_embargoes(self):
+    def get_all_data(self, table):
         try:
             e = (
-                self.session.query(EmbargoedResource)
-                .filter(EmbargoedResource.date_ephemeral != None)
-                .order_by(EmbargoedResource.pid)
+                self.session.query(table)
+                .filter(
+                    table.rid.like("%/data/eml/%"),
+                )
+                .order_by(table.pid)
                 .all()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_all_package_embargoes(self, ephemeral: bool = False):
+    def get_all_metadata(self, table):
         try:
-            if ephemeral:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(EmbargoedResource.rid.like("%/metadata/eml/%"))
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
-            else:
-                e = (
-                    self.session.query(EmbargoedResource)
-                    .filter(EmbargoedResource.rid.like("%/metadata/eml/%"))
-                    .filter(EmbargoedResource.date_ephemeral == None)
-                    .order_by(EmbargoedResource.pid)
-                    .all()
-                )
+             e = (
+                self.session.query(table)
+                .filter(table.rid.like("%/metadata/eml/%"))
+                .order_by(table.pid)
+                .all()
+            )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_count(self) -> int:
+    def get_count(self, table) -> int:
         c = 0
         try:
-            c = self.session.query(EmbargoedResource).count()
+            c = self.session.query(table).count()
         except NoResultFound as ex:
             logger.error(ex)
         return c
 
-    def get_distinct_pids(self):
+    def get_distinct_pids(self, table):
         try:
-            e = self.session.query(EmbargoedResource.pid).distinct().all()
+            e = self.session.query(table.pid).distinct().all()
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_by_id(self, id: int) -> Query:
+    def get_by_id(self, id: int, table) -> Query:
         e = None
         try:
             e = (
-                self.session.query(EmbargoedResource)
-                .filter(EmbargoedResource.id == id)
+                self.session.query(table)
+                .filter(table.id == id)
                 .one()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_by_pid(self, pid: str) -> Query:
+    def get_by_pid(self, pid: str, table) -> Query:
         try:
             e = (
-                self.session.query(EmbargoedResource)
-                .filter(EmbargoedResource.pid == pid)
+                self.session.query(table)
+                .filter(table.pid == pid)
                 .all()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_by_rid(self, rid: str) -> Query:
+    def get_by_rid(self, rid: str, table) -> Query:
         try:
             e = (
-                self.session.query(EmbargoedResource)
-                .filter(EmbargoedResource.rid == rid)
+                self.session.query(table)
+                .filter(table.rid == rid)
                 .one()
             )
         except NoResultFound as ex:
@@ -263,19 +189,24 @@ class EmbargoDB:
         self,
         rid: str,
         pid: str,
-        is_explicit: bool = False,
-        allows_authenticated: bool = False,
+        table,
         date_ephemeral: datetime = None,
-        days_ephemeral: int = None,
     ) -> int:
-        e = EmbargoedResource(
-            rid=rid,
-            pid=pid,
-            is_explicit=is_explicit,
-            allows_authenticated=allows_authenticated,
-            date_ephemeral=date_ephemeral,
-            days_ephemeral=days_ephemeral,
-        )
+        if table is Ephemeral:
+            dt_then = date_ephemeral.astimezone(tz=ABQ_TZ)
+            dt_now = datetime.now(tz=ABQ_TZ)
+            days_ephemeral = (dt_now - dt_then).days
+            e = table(
+                rid=rid,
+                pid=pid,
+                date_ephemeral=date_ephemeral,
+                days_ephemeral=days_ephemeral,
+            )
+        else:
+            e = table(
+                rid=rid,
+                pid=pid,
+            )
         try:
             self.session.add(e)
             self.session.commit()
@@ -285,16 +216,3 @@ class EmbargoDB:
             self.session.rollback()
             raise ex
         return pk
-
-    def update_ephemeral_date(
-        self, rid: str, date_ephemeral: datetime
-    ) -> Query:
-        dt_then = date_ephemeral.astimezone(tz=ABQ_TZ)
-        dt_now = datetime.now(tz=ABQ_TZ)
-        days = (dt_now - dt_then).days
-        e = self.get_by_rid(rid)
-        if e is not None:
-            e.date_ephemeral = date_ephemeral
-            e.days_ephemeral = days
-            self.session.commit()
-        return e

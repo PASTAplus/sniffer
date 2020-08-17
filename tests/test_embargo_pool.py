@@ -194,7 +194,7 @@ def test_identify_ephemeral_embargoes(embargo_pool, e_db, clean_up):
     )
     assert pk == 5
 
-    c = embargo_pool.identify_ephemeral_embargoes()
+    c = embargo_pool.add_ephemeral_resources()
     assert c == 2
 
 
@@ -202,5 +202,21 @@ def test_embargo_pool(p_db, embargo_pool, e_db, clean_up):
     c = embargo_pool.add_new_embargoed_resources()
     assert c != 0
 
+
+def test_entity_parse_for_implicit_public_deny(embargo_pool, e_db, clean_up):
+    pid = "knb-lter-hbr.169.2"
+    eml = ep.pid_metadata(pid)
+    resources = ep.entity_parse_for_implicit_public_deny(eml)
+    assert len(resources) == 1
+
+    # pid = "knb-lter-kbs.140.1"
+    # eml = ep.pid_metadata(pid)
+    # resources = ep.entity_parse_for_implicit_public_deny(eml)
+    # assert len(resources) == 1
+
+    pid = "knb-lter-nin.1.1"
+    eml = ep.pid_metadata(pid)
+    resources = ep.entity_parse_for_implicit_public_deny(eml)
+    assert len(resources) == 0
 
 
