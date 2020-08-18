@@ -14,6 +14,7 @@
 """
 from datetime import datetime
 from dateutil import tz
+from typing import Type
 
 import daiquiri
 from sqlalchemy import (
@@ -47,14 +48,8 @@ class Resource(Base):
     id = Column(Integer(), primary_key=True)
     rid = Column(String(), unique=True)
     pid = Column(String(), nullable=False)
-
-
-class Authenticated(Base):
-    __tablename__ = "authenticated"
-
-    id = Column(Integer(), primary_key=True)
-    rid = Column(String(), unique=True)
-    pid = Column(String(), nullable=False)
+    type = Column(Integer(), nullable=False)
+    auth = Column(Boolean(), nullable=False)
 
 
 class Ephemeral(Base):
@@ -67,22 +62,6 @@ class Ephemeral(Base):
     days_ephemeral = Column(Integer(), nullable=True, default=None)
 
 
-class Explicit(Base):
-    __tablename__ = "explicit"
-
-    id = Column(Integer(), primary_key=True)
-    rid = Column(String(), unique=True)
-    pid = Column(String(), nullable=False)
-
-
-class Implicit(Base):
-    __tablename__ = "implicit"
-
-    id = Column(Integer(), primary_key=True)
-    rid = Column(String(), unique=True)
-    pid = Column(String(), nullable=False)
-
-
 class EmbargoDB:
     def __init__(self, db: str):
         from sqlalchemy import create_engine
@@ -92,121 +71,134 @@ class EmbargoDB:
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-    def delete_all(self, table):
+    def delete_all(self):
         try:
-            e = self.session.query(table).delete()
+            e = self.session.query(Resource).delete()
             self.session.commit()
         except NoResultFound as ex:
             logger.error(ex)
 
-    def get_all(self, table) -> Query:
+    def get_all(self) -> Query:
         try:
             e = (
-                self.session.query(table)
-                .order_by(table.pid)
+                self.session.query(Resource)
+                .order_by(Resource.pid)
                 .all()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_all_data(self, table):
+    def get_all_data(self):
         try:
             e = (
-                self.session.query(table)
+                self.session.query(Resource)
                 .filter(
-                    table.rid.like("%/data/eml/%"),
+                    Resource.rid.like("%/data/eml/%"),
                 )
-                .order_by(table.pid)
+                .order_by(Resource.pid)
                 .all()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_all_metadata(self, table):
+    def get_all_metadata(self):
         try:
              e = (
-                self.session.query(table)
-                .filter(table.rid.like("%/metadata/eml/%"))
-                .order_by(table.pid)
+                self.session.query(Resource)
+                .filter(Resource.rid.like("%/metadata/eml/%"))
+                .order_by(Resource.pid)
                 .all()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_count(self, table) -> int:
+    def get_count(self) -> int:
         c = 0
         try:
-            c = self.session.query(table).count()
+            c = self.session.query(Resource).count()
         except NoResultFound as ex:
             logger.error(ex)
         return c
 
-    def get_distinct_pids(self, table):
+    def get_distinct_pids(self):
         try:
-            e = self.session.query(table.pid).distinct().all()
+            e = self.session.query(Resource.pid).distinct().all()
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_by_id(self, id: int, table) -> Query:
+    def get_by_id(self, id: int) -> Query:
         e = None
         try:
             e = (
-                self.session.query(table)
-                .filter(table.id == id)
+                self.session.query(Resource)
+                .filter(Resource.id == id)
                 .one()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_by_pid(self, pid: str, table) -> Query:
+    def get_by_pid(self, pid: str) -> Query:
         try:
             e = (
-                self.session.query(table)
-                .filter(table.pid == pid)
+                self.session.query(Resource)
+                .filter(Resource.pid == pid)
                 .all()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def get_by_rid(self, rid: str, table) -> Query:
+    def get_by_rid(self, rid: str) -> Query:
         try:
             e = (
-                self.session.query(table)
-                .filter(table.rid == rid)
+                self.session.query(Resource)
+                .filter(Resource.rid == rid)
                 .one()
             )
         except NoResultFound as ex:
             logger.error(ex)
         return e
 
-    def insert(
-        self,
-        rid: str,
-        pid: str,
-        table,
-        date_ephemeral: datetime = None,
-    ) -> int:
-        if table is Ephemeral:
-            dt_then = date_ephemeral.astimezone(tz=ABQ_TZ)
-            dt_now = datetime.now(tz=ABQ_TZ)
-            days_ephemeral = (dt_now - dt_then).days
-            e = table(
-                rid=rid,
-                pid=pid,
-                date_ephemeral=date_ephemeral,
-                days_ephemeral=days_ephemeral,
+    def insert(self, rid: str, pid: str, type: int, auth: bool = False) -> int:
+        e = Resource(rid=rid, pid=pid, type=type, auth=auth)
+        try:
+            self.session.add(e)
+            self.session.commit()
+            pk = e.id
+        except IntegrityError as ex:
+            logger.error(ex)
+            self.session.rollback()
+            raise ex
+        return pk
+
+    def delete_all_ephemeral(self):
+        try:
+            e = self.session.query(Ephemeral).delete()
+            self.session.commit()
+        except NoResultFound as ex:
+            logger.error(ex)
+
+    def get_all_ephemeral(self) -> Query:
+        try:
+            e = (
+                self.session.query(Ephemeral)
+                .order_by(Resource.pid)
+                .all()
             )
-        else:
-            e = table(
-                rid=rid,
-                pid=pid,
-            )
+        except NoResultFound as ex:
+            logger.error(ex)
+        return e
+
+    def insert_ephemeral(self, rid: str, pid: str, dt: datetime) -> int:
+        dt_then = dt.astimezone(tz=ABQ_TZ)
+        dt_now = datetime.now(tz=ABQ_TZ)
+        days = (dt_now - dt_then).days
+        e = Ephemeral(rid=rid, pid=pid, date_ephemeral=dt, days_ephemeral=days)
         try:
             self.session.add(e)
             self.session.commit()

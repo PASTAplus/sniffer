@@ -44,7 +44,25 @@ TEST_PACKAGE_DATA = (
         None
     ],
     [
+        "knb-lter-nin.1.1",
+        datetime(2013, 1, 10, 14, 45, 31, 1000),
+        None,
+        "doi:10.6073/pasta/0675d3602ff57f24838ca8d14d7f3961"
+    ],
+    [
         "knb-lter-knz.201.1",
+        datetime(2018, 2, 14, 9, 4, 5, 131000),
+        None,
+        None
+    ],
+    [
+        "knb-lter-fce.1212.1",
+        datetime(2018, 2, 14, 9, 4, 5, 131000),
+        None,
+        None
+    ],
+    [
+        "knb-lter-hbr.169.2",
         datetime(2018, 2, 14, 9, 4, 5, 131000),
         None,
         None
@@ -199,24 +217,49 @@ def test_identify_ephemeral_embargoes(embargo_pool, e_db, clean_up):
 
 
 def test_embargo_pool(p_db, embargo_pool, e_db, clean_up):
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[0][0],
+        date_created=TEST_PACKAGE_DATA[0][1],
+        date_deactivate=TEST_PACKAGE_DATA[0][2],
+        doi=TEST_PACKAGE_DATA[0][3]
+    )
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[1][0],
+        date_created=TEST_PACKAGE_DATA[1][1],
+        date_deactivate=TEST_PACKAGE_DATA[1][2],
+        doi=TEST_PACKAGE_DATA[1][3]
+    )
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[2][0],
+        date_created=TEST_PACKAGE_DATA[2][1],
+        date_deactivate=TEST_PACKAGE_DATA[2][2],
+        doi=TEST_PACKAGE_DATA[2][3]
+    )
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[3][0],
+        date_created=TEST_PACKAGE_DATA[3][1],
+        date_deactivate=TEST_PACKAGE_DATA[3][2],
+        doi=TEST_PACKAGE_DATA[3][3]
+    )
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[4][0],
+        date_created=TEST_PACKAGE_DATA[4][1],
+        date_deactivate=TEST_PACKAGE_DATA[4][2],
+        doi=TEST_PACKAGE_DATA[4][3]
+    )
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[5][0],
+        date_created=TEST_PACKAGE_DATA[5][1],
+        date_deactivate=TEST_PACKAGE_DATA[5][2],
+        doi=TEST_PACKAGE_DATA[5][3]
+    )
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[6][0],
+        date_created=TEST_PACKAGE_DATA[6][1],
+        date_deactivate=TEST_PACKAGE_DATA[6][2],
+        doi=TEST_PACKAGE_DATA[6][3]
+    )
+
     c = embargo_pool.add_new_embargoed_resources()
-    assert c != 0
-
-
-def test_entity_parse_for_implicit_public_deny(embargo_pool, e_db, clean_up):
-    pid = "knb-lter-hbr.169.2"
-    eml = ep.pid_metadata(pid)
-    resources = ep.entity_parse_for_implicit_public_deny(eml)
-    assert len(resources) == 1
-
-    # pid = "knb-lter-kbs.140.1"
-    # eml = ep.pid_metadata(pid)
-    # resources = ep.entity_parse_for_implicit_public_deny(eml)
-    # assert len(resources) == 1
-
-    pid = "knb-lter-nin.1.1"
-    eml = ep.pid_metadata(pid)
-    resources = ep.entity_parse_for_implicit_public_deny(eml)
-    assert len(resources) == 0
-
+    assert c == 12
 

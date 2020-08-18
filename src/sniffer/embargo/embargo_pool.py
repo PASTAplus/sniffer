@@ -23,13 +23,7 @@ from sqlalchemy.exc import IntegrityError
 
 from sniffer.config import Config
 import sniffer.last_date as last_date
-from sniffer.model.embargo_db import (
-    EmbargoDB,
-    Authenticated,
-    Ephemeral,
-    Explicit,
-    Implicit,
-)
+from sniffer.model.embargo_db import EmbargoDB, Ephemeral
 from sniffer.model import pasta_data_package_manager_db
 from sniffer.package.package_pool import PackagePool
 
@@ -59,7 +53,7 @@ SQL_RESOURCE_CREATE_DATE = (
 )
 
 SQL_ENTITY_LIST = (
-    "SELECT datapackagemanager.resource_regsistry.resource_id FROM "
+    "SELECT datapackagemanager.resource_registry.resource_id FROM "
     "datapackagemanager.resource_registry WHERE package_id='<PID>' "
     "AND resource_type='data'"
 )
@@ -125,21 +119,20 @@ def generate_pid(resource: str) -> str:
     return pid
 
 
-def pid_metadata(pid: str, authenticated=False) -> str:
+def pasta_metadata(pid: str) -> str:
     scope, identifier, revision = pid.split(".")
     url = f"{Config.PASTA_URL}metadata/eml/{scope}/{identifier}/{revision}"
-    if authenticated:
-        dn = Config.DN
-        pw = Config.PASSWORD
-        r = requests.get(url, auth=(dn, pw))
-    else:
-        r = requests.get(url)
+    dn = Config.DN
+    pw = Config.PASSWORD
+    r = requests.get(url, auth=(dn, pw))
     if r.status_code == requests.codes.ok:
         eml = r.text
     elif r.status_code == requests.codes.unauthorized:
         eml = None
     else:
-        msg = f"Error accessing {pid} metadata - response code: {r.status_code}"
+        msg = (
+            f"Error accessing {pid} metadata - response code: {r.status_code}"
+        )
         raise ConnectionError(msg)
     return eml
 
@@ -157,32 +150,32 @@ class EmbargoPool:
         :return:
             Count of embargoed resources
         """
+
+        embargo_date_path = Config.PATH + Config.EMBARGO_DATE
+        from_date = last_date.read(embargo_date_path)
+        packages = self._package_pool.get_all_packages(from_date=from_date)
         count = 0
-        count += self.add_explicit_resources()
-        count += self.add_ephemeral_resources()
-        count += self.add_authenticated_resources()
-        count += self.add_implicit_resources()
-        return count
+        for package in packages:
+            pid = package.pid.strip()
+            scope, identifier, revision = pid.split(".")
+            if scope not in (
+                "ecotrends",
+                "lter-landsat",
+                "lter-landsat-ledaps",
+            ):
+                msg = f"Testing package for embargo(s): {pid}"
+                logger.info(msg)
+                p = Package(pid)
+                count += p.count_embargoed_resources
+                for resource in p.embargoed_resources:
+                    self._e_db.insert(
+                        rid=resource[0],
+                        pid=resource[1],
+                        type=resource[2],
+                        auth=resource[3],
+                    )
+                last_date.write(embargo_date_path, package.date_created)
 
-    def add_authenticated_resources(self) -> int:
-        count = 0
-        self._e_db.delete_all(table=Authenticated)
-
-        authenticated_resources = pasta_data_package_manager_db.query(
-            SQL_AUTHENTICATED
-        )
-        for authenticated_resource in authenticated_resources:
-            try:
-                pid = generate_pid(authenticated_resource[0])
-                self._e_db.insert(
-                    rid=authenticated_resource[0], pid=pid, table=Authenticated
-                )
-                count += 1
-            except IntegrityError as ex:
-                msg = f"Ignoring resource '{authenticated_resource[0]}"
-                logger.warning(msg)
-
-        logger.info(f"Found {count} authenticated embargoes")
         return count
 
     def add_ephemeral_resources(self) -> int:
@@ -195,15 +188,15 @@ class EmbargoPool:
             Count of identified resources
         """
         count = 0
-        self._e_db.delete_all(table=Ephemeral)
+        self._e_db.delete_all()
 
-        package_embargoes = self._e_db.get_all_metadata(table=Explicit)
+        package_embargoes = self._e_db.get_all_metadata()
         ignore_packages = list()
         for package_embargo in package_embargoes:
             ignore_packages.append(package_embargo.pid)
 
         verified_embargoes = self.verify_metadata_embargo()
-        embargoes = self._e_db.get_all(table=Explicit)
+        embargoes = self._e_db.get_all()
         for embargo in embargoes:
             if (
                 embargo.pid not in ignore_packages
@@ -217,76 +210,7 @@ class EmbargoPool:
                 msg = f"Found ephemeral embargo: {embargo.pid} - {embargo.rid}"
                 logger.debug(msg)
 
-                for date in dates:
-                    self._e_db.insert(
-                        rid=embargo.rid,
-                        pid=embargo.pid,
-                        table=Ephemeral,
-                        date_ephemeral=date[0],
-                    )
-
         logger.info(f"Found {count} ephemeral embargoes")
-        return count
-
-    def add_explicit_resources(self) -> int:
-        count = 0
-        self._e_db.delete_all(table=Explicit)
-
-        explicit_resources = pasta_data_package_manager_db.query(SQL_EXPLICIT)
-        for explicit_resource in explicit_resources:
-            try:
-                pid = generate_pid(explicit_resource[0])
-                self._e_db.insert(
-                    rid=explicit_resource[0], pid=pid, table=Explicit
-                )
-                count += 1
-            except IntegrityError as ex:
-                msg = f"Ignoring resource '{explicit_resource[0]}"
-                logger.warning(msg)
-
-        logger.info(f"Found {count} explicit embargoes")
-        return count
-
-    def add_implicit_resources(self) -> int:
-        embargo_date_path = Config.PATH + Config.EMBARGO_DATE
-        from_date = last_date.read(embargo_date_path)
-        packages = self._package_pool.get_all_packages(from_date=from_date)
-        count = 0
-        for package in packages:
-            pid = package.pid.strip()
-            scope, identifier, revision = pid.split(".")
-            if scope not in (
-                "ecotrends",
-                "lter-landsat",
-                "lter-landsat-ledaps",
-            ):
-                eml = pid_metadata(pid)
-                msg = f"Testing package for implicit entity embargo(s): {pid}"
-                logger.info(msg)
-                if eml is not None:
-                    resources = entity_parse_for_implicit_public_deny(eml)
-                    for resource in resources:
-                        self._e_db.insert(rid=resource, pid=pid, table=Implicit)
-                        msg = (
-                                f"Adding implicit resource: {pid}, "
-                                f"{resource}, {resource[1]}"
-                        )
-                        logger.warning(msg)
-                        count += 1
-                else:
-                    logger.warn(f"Package is not public read: {pid}")
-                    entities = pasta_data_package_manager_db.query(
-                        SQL_ENTITY_LIST
-                    )
-                    for entity in entities:
-                        self._e_db.insert(
-                            rid=entity[0],
-                            pid=pid,
-                            table=Implicit
-                        )
-
-                last_date.write(embargo_date_path, package.date_created)
-
         return count
 
     def verify_metadata_embargo(self) -> list:
@@ -297,10 +221,10 @@ class EmbargoPool:
             List of verified resources
         """
         resources = list()
-        embargoed_pids = self._e_db.get_distinct_pids(table=Explicit)
+        embargoed_pids = self._e_db.get_distinct_pids()
         for embargoed_pid in embargoed_pids:
             pid = embargoed_pid.pid
-            eml = pid_metadata(pid, authenticated=True)
+            eml = pasta_metadata(pid)
             if eml is None:
                 msg = f"ACL for package {pid} does not permit public read"
                 logger.warning(msg)
@@ -308,3 +232,170 @@ class EmbargoPool:
                 resources += entity_parse_for_explicit_public_deny(eml)
         return resources
 
+
+class Package:
+    def __init__(self, pid: str):
+        self._embargoed_resources = list()
+        self._pid = pid
+        scope, identifier, revision = self._pid.split(".")
+        metadata_resource = (
+            Config.METADATA_URL.replace("<SCOPE>", scope)
+            .replace("<IDENTIFIER>", identifier)
+            .replace("<REVISION>", revision)
+        )
+        metadata = pasta_metadata(self._pid)
+        if metadata is None:
+            msg = f"Failed to access package metadata: {pid}"
+            logger.warning(msg)
+            self._embargoed_resources.append(
+                (
+                    metadata_resource,
+                    self._pid,
+                    Config.EXPLICIT,
+                    False
+                )
+            )
+            sql = SQL_ENTITY_LIST.replace("<PID>", self._pid)
+            resources = pasta_data_package_manager_db.query(sql)
+            for resource in resources:
+                self._embargoed_resources.append(
+                    (
+                        resource[0],
+                        self._pid,
+                        Config.EXPLICIT,
+                        False
+                    )
+                )
+        else:
+            self._eml = etree.fromstring(metadata.encode("utf-8"))
+            self._package_embargo_type = None
+            self._package_embargo_type, allows_auth = self._package_embargo()
+            if self._package_embargo_type is not None:
+                self._embargoed_resources.append(
+                    (
+                        metadata_resource,
+                        self._pid,
+                        self._package_embargo_type,
+                        allows_auth
+                    )
+                )
+            self._embargoed_resources += self._entity_embargoes()
+
+    @property
+    def embargoed_resources(self):
+        return self._embargoed_resources
+
+    @property
+    def count_embargoed_resources(self):
+        return len(self._embargoed_resources)
+
+    def _allows_authenticated(self, access) -> bool:
+        allow_authenticated = False
+        if access is not None:
+            allows = access.findall("./allow")
+            for allow in allows:
+                principals = allow.findall("./principal")
+                for principal in principals:
+                    if principal.text.strip() == "authenticated":
+                        permissions = allow.findall("./permission")
+                        for permission in permissions:
+                            if permission.text.strip() in (
+                                "read",
+                                "write",
+                                "all",
+                                "changePermission",
+                            ):
+                                allow_authenticated = True
+                                if permission.text.strip() != "read":
+                                    pid = self._eml.get("packageId")
+                                    msg = (
+                                        "Authenticated permission too high for "
+                                        f"package: {pid}"
+                                    )
+                                    logger.warning(msg)
+        return allow_authenticated
+
+    def _entity_embargoes(self) -> List:
+        entity_resources = list()
+        phys = self._eml.findall("./dataset//physical")
+        for p in phys:
+            distributions = p.findall("./distribution")
+            for distribution in distributions:
+                url = distribution.find("./online/url")
+                if url is not None:
+                    embargo_type = None
+                    access = distribution.find("./access")
+                    if self._is_explicitly_denied(access):
+                        embargo_type = Config.EXPLICIT
+                    elif self._is_implicitly_denied(access):
+                        embargo_type = Config.IMPLICIT
+                    if embargo_type is not None:
+                        allows_auth = self._allows_authenticated(access)
+                        entity_resources.append(
+                            (
+                                url.text.strip(),
+                                self._pid,
+                                embargo_type,
+                                allows_auth,
+                            )
+                        )
+        return entity_resources
+
+    def _is_explicitly_denied(self, access) -> bool:
+        if self._package_embargo_type == Config.EXPLICIT:
+            is_denied = True
+        else:
+            is_denied = False
+            if access is not None:
+                denies = access.findall("./deny")
+                for deny in denies:
+                    principals = deny.findall("./principal")
+                    for principal in principals:
+                        if principal.text.strip() == "public":
+                            permissions = deny.findall("./permission")
+                            for permission in permissions:
+                                if permission.text.strip() == "read":
+                                    is_denied = True
+        return is_denied
+
+    def _is_implicitly_denied(self, access) -> bool:
+        if self._package_embargo_type == Config.IMPLICIT:
+            is_denied = True
+        else:
+            is_denied = False
+            if access is not None:
+                is_denied = True
+                allows = access.findall("./allow")
+                for allow in allows:
+                    principals = allow.findall("./principal")
+                    for principal in principals:
+                        if principal.text.strip() == "public":
+                            permissions = allow.findall("./permission")
+                            for permission in permissions:
+                                if permission.text.strip() in (
+                                    "read",
+                                    "write",
+                                    "all",
+                                    "changePermission",
+                                ):
+                                    is_denied = False
+                                    if permission.text.strip() != "read":
+                                        pid = self._eml.get("packageId")
+                                        msg = (
+                                            "Authenticated permission too high "
+                                            f"for package: {pid}"
+                                        )
+                                        logger.warning(msg)
+        return is_denied
+
+    def _package_embargo(self) -> Tuple:
+        embargo_type = None
+        allows_auth = None
+        access = self._eml.find("./access")
+        if self._is_explicitly_denied(access):
+            embargo_type = Config.EXPLICIT
+        elif self._is_implicitly_denied(access):
+            embargo_type = Config.IMPLICIT
+        if embargo_type is not None:
+            allows_auth = self._allows_authenticated(access)
+        return embargo_type, allows_auth
