@@ -40,6 +40,9 @@ class Config:
     METADATA_URL = PASTA_URL + "metadata/eml/<SCOPE>/<IDENTIFIER>/<REVISION>"
     RESOURCE_URL = PASTA_URL + "eml/<SCOPE>/<IDENTIFIER>/<REVISION>"
 
+    EXPLICIT = 0
+    IMPLICIT = 1
+
     DN = <USER>
     PASSWORD = <PASSWORD>
 
