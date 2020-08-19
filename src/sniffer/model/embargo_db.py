@@ -208,7 +208,7 @@ class EmbargoDB:
         try:
             e = (
                 self.session.query(Ephemeral)
-                .order_by(Resource.pid)
+                .order_by(Ephemeral.days_ephemeral.desc())
                 .all()
             )
         except NoResultFound as ex:
