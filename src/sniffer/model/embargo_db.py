@@ -237,7 +237,7 @@ class EmbargoDB:
         except NoResultFound as ex:
             logger.error(ex)
 
-    def get_all_newest(self) -> Query:
+    def get_all_newest(self):
         try:
             e = (
                 self.session.query(Newest)
