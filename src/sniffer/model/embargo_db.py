@@ -204,7 +204,7 @@ class EmbargoDB:
         except NoResultFound as ex:
             logger.error(ex)
 
-    def get_all_ephemeral(self) -> Query:
+    def get_all_ephemeral(self):
         try:
             e = (
                 self.session.query(Ephemeral)
