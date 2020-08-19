@@ -50,6 +50,12 @@ TEST_PACKAGE_DATA = (
         "doi:10.6073/pasta/0675d3602ff57f24838ca8d14d7f3961"
     ],
     [
+        "edi.448.3",
+        datetime(2013, 1, 10, 14, 45, 31, 1000),
+        None,
+        "doi:10.6073/pasta/0675d3602ff57f24838ca8d14d7f3961"
+    ],
+    [
         "knb-lter-knz.201.1",
         datetime(2018, 2, 14, 9, 4, 5, 131000),
         None,
@@ -73,10 +79,14 @@ TEST_EMBARGO_METADATA_RESOURCE = (
     [
         "https://pasta.lternet.edu/package/metadata/eml/knb-lter-fce/1210/3",
         "knb-lter-fce.1210.3",
+         1,
+        True
     ],
     [
         "https://pasta.lternet.edu/package/metadata/eml/knb-lter-kbs/140/5",
         "knb-lter-kbs.140.5",
+         0,
+        False
     ],
 )
 
@@ -85,19 +95,27 @@ TEST_EMBARGO_DATA_RESOURCE = (
         "https://pasta.lternet.edu/package/data/eml/edi/512/1/bb87318745d9b83f102aa0a58e9b5386",
         "edi.512.1",
         "2020-05-13 13:44:42.444000",
+         1,
+        True
     ],
     [
         "https://pasta.lternet.edu/package/data/eml/edi/512/1/c858be23bac4b5f93b830bcbdac6ba2c",
         "edi.512.1",
         "2020-05-13 13:44:42.444000",
+         1,
+        True
     ],
     [
         "https://pasta.lternet.edu/package/data/eml/knb-lter-fce/1210/4/c7d09464082a09ec5c232ee314a4f42a",
         "knb-lter-fce.1210.4",
+         0,
+        False
     ],
     [
         "https://pasta.lternet.edu/package/data/eml/edi/50/1/a2adee56fd9c7285e546c53f50c368b4",
         "edi.50.1",
+         1,
+        True
     ],
 )
 Config.PATH = Config.TEST_PATH
@@ -133,87 +151,37 @@ def test_embargo_pool_instance(embargo_pool, e_db, clean_up):
     pass
 
 
-def test_add_new_embargoed_resources(embargo_pool, e_db, clean_up):
+def test_add_new_embargoed_resources(p_db, embargo_pool, e_db, clean_up):
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[0][0],
+        date_created=TEST_PACKAGE_DATA[0][1],
+        date_deactivate=TEST_PACKAGE_DATA[0][2],
+        doi=TEST_PACKAGE_DATA[0][3]
+    )
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[1][0],
+        date_created=TEST_PACKAGE_DATA[1][1],
+        date_deactivate=TEST_PACKAGE_DATA[1][2],
+        doi=TEST_PACKAGE_DATA[1][3]
+    )
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[2][0],
+        date_created=TEST_PACKAGE_DATA[2][1],
+        date_deactivate=TEST_PACKAGE_DATA[2][2],
+        doi=TEST_PACKAGE_DATA[2][3]
+    )
+
     a = embargo_pool.add_new_embargoed_resources()
     c = e_db.get_count()
     assert a == c
 
 
 def test_generate_pid(embargo_pool, e_db, clean_up):
-    pid = ep.generate_pid(TEST_EMBARGO_METADATA_RESOURCE[0][0])
+    pid = ep.pid_from_resource(TEST_EMBARGO_METADATA_RESOURCE[0][0])
     assert pid == TEST_EMBARGO_METADATA_RESOURCE[0][1]
 
-    pid = ep.generate_pid(TEST_EMBARGO_DATA_RESOURCE[0][0])
+    pid = ep.pid_from_resource(TEST_EMBARGO_DATA_RESOURCE[0][0])
     assert pid == TEST_EMBARGO_DATA_RESOURCE[0][1]
-
-
-def test_verify_metadata_embargo(embargo_pool, e_db, clean_up):
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[0][0],
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
-    )
-    assert pk == 1
-
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[1][0],
-        TEST_EMBARGO_METADATA_RESOURCE[1][1],
-    )
-    assert pk == 2
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[0][0],
-        TEST_EMBARGO_DATA_RESOURCE[0][1],
-    )
-    assert pk == 3
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[1][0],
-        TEST_EMBARGO_DATA_RESOURCE[1][1],
-    )
-    assert pk == 4
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[2][0],
-        TEST_EMBARGO_DATA_RESOURCE[2][1],
-    )
-    assert pk == 5
-
-    embargo_pool.verify_metadata_embargo()
-
-
-def test_identify_ephemeral_embargoes(embargo_pool, e_db, clean_up):
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[0][0],
-        TEST_EMBARGO_METADATA_RESOURCE[0][1],
-    )
-    assert pk == 1
-
-    pk = e_db.insert(
-        TEST_EMBARGO_METADATA_RESOURCE[1][0],
-        TEST_EMBARGO_METADATA_RESOURCE[1][1],
-    )
-    assert pk == 2
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[0][0],
-        TEST_EMBARGO_DATA_RESOURCE[0][1],
-    )
-    assert pk == 3
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[1][0],
-        TEST_EMBARGO_DATA_RESOURCE[1][1],
-    )
-    assert pk == 4
-
-    pk = e_db.insert(
-        TEST_EMBARGO_DATA_RESOURCE[2][0],
-        TEST_EMBARGO_DATA_RESOURCE[2][1],
-    )
-    assert pk == 5
-
-    c = embargo_pool.add_ephemeral_resources()
-    assert c == 2
 
 
 def test_embargo_pool(p_db, embargo_pool, e_db, clean_up):
@@ -259,7 +227,18 @@ def test_embargo_pool(p_db, embargo_pool, e_db, clean_up):
         date_deactivate=TEST_PACKAGE_DATA[6][2],
         doi=TEST_PACKAGE_DATA[6][3]
     )
+    p_db.insert(
+        pid=TEST_PACKAGE_DATA[7][0],
+        date_created=TEST_PACKAGE_DATA[7][1],
+        date_deactivate=TEST_PACKAGE_DATA[7][2],
+        doi=TEST_PACKAGE_DATA[7][3]
+    )
 
     c = embargo_pool.add_new_embargoed_resources()
-    assert c == 12
+    assert c != 0
+
+
+def test_newest_pids(embargo_pool):
+    pids = ep.newest_pids()
+    assert len(pids) != 0
 

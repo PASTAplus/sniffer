@@ -62,6 +62,15 @@ class Ephemeral(Base):
     days_ephemeral = Column(Integer(), nullable=True, default=None)
 
 
+class Newest(Base):
+    __tablename__ = "newest"
+    id = Column(Integer(), primary_key=True)
+    rid = Column(String(), unique=True)
+    pid = Column(String(), nullable=False)
+    type = Column(Integer(), nullable=False)
+    auth = Column(Boolean(), nullable=False)
+
+
 class EmbargoDB:
     def __init__(self, db: str):
         from sqlalchemy import create_engine
@@ -154,6 +163,7 @@ class EmbargoDB:
         return e
 
     def get_by_rid(self, rid: str) -> Query:
+        e = None
         try:
             e = (
                 self.session.query(Resource)
@@ -164,7 +174,18 @@ class EmbargoDB:
             logger.error(ex)
         return e
 
-    def insert(self, rid: str, pid: str, type: int, auth: bool = False) -> int:
+    def get_by_type(self, type: int) -> Query:
+        try:
+            e = (
+                self.session.query(Resource)
+                .filter(Resource.type == type)
+                .all()
+            )
+        except NoResultFound as ex:
+            logger.error(ex)
+        return e
+
+    def insert(self, rid: str, pid: str, type: int, auth: bool) -> int:
         e = Resource(rid=rid, pid=pid, type=type, auth=auth)
         try:
             self.session.add(e)
@@ -199,6 +220,70 @@ class EmbargoDB:
         dt_now = datetime.now(tz=ABQ_TZ)
         days = (dt_now - dt_then).days
         e = Ephemeral(rid=rid, pid=pid, date_ephemeral=dt, days_ephemeral=days)
+        try:
+            self.session.add(e)
+            self.session.commit()
+            pk = e.id
+        except IntegrityError as ex:
+            logger.error(ex)
+            self.session.rollback()
+            raise ex
+        return pk
+
+    def delete_all_newest(self):
+        try:
+            e = self.session.query(Newest).delete()
+            self.session.commit()
+        except NoResultFound as ex:
+            logger.error(ex)
+
+    def get_all_newest(self) -> Query:
+        try:
+            e = (
+                self.session.query(Newest)
+                .order_by(Newest.pid)
+                .all()
+            )
+        except NoResultFound as ex:
+            logger.error(ex)
+        return e
+
+    def get_all_newest_data(self):
+        try:
+            e = (
+                self.session.query(Newest)
+                .filter(
+                    Newest.rid.like("%/data/eml/%"),
+                )
+                .order_by(Newest.pid)
+                .all()
+            )
+        except NoResultFound as ex:
+            logger.error(ex)
+        return e
+
+    def get_all_newest_metadata(self):
+        try:
+             e = (
+                self.session.query(Newest)
+                .filter(Newest.rid.like("%/metadata/eml/%"))
+                .order_by(Newest.pid)
+                .all()
+            )
+        except NoResultFound as ex:
+            logger.error(ex)
+        return e
+
+    def get_newest_count(self) -> int:
+        c = 0
+        try:
+            c = self.session.query(Newest).count()
+        except NoResultFound as ex:
+            logger.error(ex)
+        return c
+
+    def insert_newest(self, rid: str, pid: str, type: int, auth: bool) -> int:
+        e = Newest(rid=rid, pid=pid, type=type, auth=auth)
         try:
             self.session.add(e)
             self.session.commit()
