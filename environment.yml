@@ -1,7 +1,7 @@
 name: sniffer
 channels:
-  - defaults
   - conda-forge
+  - defaults
 dependencies:
   - _libgcc_mutex=0.1
   - appdirs=1.4.3

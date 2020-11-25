@@ -1,0 +1,16 @@
+name: sniffer
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - daiquiri
+  - pendulum
+  - sqlalchemy
+  - click
+  - pytest
+  - black
+  - psycopg2
+  - requests
+  - lxml
+prefix: /home/servilla/anaconda3/envs/sniffer
