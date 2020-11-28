@@ -39,7 +39,7 @@ from sniffer.config import Config
 
 logger = daiquiri.getLogger(__name__)
 Base = declarative_base()
-ABQ_TZ = tz.gettz("America/Denver")
+MTN_TZ = tz.gettz("America/Denver")
 
 
 class Resource(Base):
@@ -145,7 +145,7 @@ class EmbargoDB:
             e = (
                 self.session.query(Resource)
                 .filter(Resource.id == id)
-                .one()
+                .first()
             )
         except NoResultFound as ex:
             logger.error(ex)
@@ -163,12 +163,11 @@ class EmbargoDB:
         return e
 
     def get_by_rid(self, rid: str) -> Query:
-        e = None
         try:
             e = (
                 self.session.query(Resource)
                 .filter(Resource.rid == rid)
-                .one()
+                .first()
             )
         except NoResultFound as ex:
             logger.error(ex)
@@ -216,8 +215,8 @@ class EmbargoDB:
         return e
 
     def insert_ephemeral(self, rid: str, pid: str, dt: datetime) -> int:
-        dt_then = dt.astimezone(tz=ABQ_TZ)
-        dt_now = datetime.now(tz=ABQ_TZ)
+        dt_then = dt.astimezone(tz=MTN_TZ)
+        dt_now = datetime.now(tz=MTN_TZ)
         days = (dt_now - dt_then).days
         e = Ephemeral(rid=rid, pid=pid, date_ephemeral=dt, days_ephemeral=days)
         try:
