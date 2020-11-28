@@ -16,23 +16,15 @@ from datetime import datetime
 
 import daiquiri
 from sqlalchemy import (
-    Boolean,
     Column,
-    Integer,
     String,
     DateTime,
-    ForeignKey,
-    desc,
-    asc,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.query import Query
-from sqlalchemy.sql import not_
-
-from sniffer.config import Config
 
 logger = daiquiri.getLogger(__name__)
 Base = declarative_base()
@@ -62,7 +54,8 @@ class PackageDB:
                 p = (
                     self.session.query(Package)
                     .order_by(Package.date_created.asc())
-                    .all())
+                    .all()
+                )
             else:
                 p = (
                     self.session.query(Package)
@@ -111,7 +104,6 @@ class PackageDB:
         date_deactivate: datetime,
         doi: str,
     ):
-        pk = None
         p = Package(
             pid=pid,
             date_created=date_created,

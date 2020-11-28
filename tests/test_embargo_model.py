@@ -230,6 +230,7 @@ def test_get_resources(e_db, clean_up):
     assert count == 3
 
     resource = e_db.get_by_id(id=2,)
+    assert resource is not None
     assert resource.id == 2
     assert resource.rid == TEST_EMBARGO_DATA_RESOURCE[0][0]
 
