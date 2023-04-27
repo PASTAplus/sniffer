@@ -12,6 +12,8 @@
 :Created:
     5/12/20
 """
+import urllib
+
 import daiquiri
 from sqlalchemy import create_engine
 from sqlalchemy.engine import ResultProxy
@@ -31,7 +33,7 @@ def query(sql: str):
         + "://"
         + Config.DB_USER
         + ":"
-        + Config.DB_PW
+        + urllib.parse.quote_plus(Config.DB_PW)
         + "@"
         + Config.DB_HOST
         + "/"
