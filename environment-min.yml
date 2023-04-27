@@ -3,14 +3,14 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.8
-  - daiquiri
-  - pendulum
-  - sqlalchemy
-  - click
-  - pytest
   - black
+  - python=3.11
+  - lxml
   - psycopg2
   - requests
-  - lxml
+  - daiquiri
+  - click
+  - pytest
+  - pendulum
+  - sqlalchemy=1.4.46
 prefix: /home/servilla/anaconda3/envs/sniffer
