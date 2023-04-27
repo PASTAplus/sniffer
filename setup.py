@@ -39,10 +39,9 @@ setup(
     include_package_data=True,
     exclude_package_data={"": ["settings.py, properties.py, config.py"],},
     package_dir={"": "src"},
-    python_requires=">3.8.*",
+    python_requires=">3.8",
     install_requires=[
         "click >= 7.1.1",
-        "black >= 19.10b0",
         "daiquiri >= 2.1.1",
         "lxml >= 4.5.2",
         "psycopg2 >= 2.8.5",
