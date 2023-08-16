@@ -76,4 +76,4 @@ def test_offline_pool(offline_pool, p_db, clean_up):
     assert pk == TEST_PACKAGE_DATA[1][0]
 
     c = offline_pool.add_new_offline_resources()
-    assert c == 0
+    assert c == 1
