@@ -1,23 +1,34 @@
-[tool.black]
-line-length = 79
-target-version = ['py36', 'py37', 'py38']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
+[project]
+authors = [
+  {name = "Mark Servilla", email = "mark.servilla@gmail.com"},
+  {name = "James Brunt", email = "jbrunt@unm.edu"}
+]
+name = "sniffer"
+version = "2020.08.04"
+description = "Data package sniffer framework to analyze aspects of the PASTA+ data package."
+requires-python = ">=3.11,<3.12"
 
-  # The following are specific to Black, you probably don't want those.
-  | blib2to3
-  | tests/data
-  | profiling
-)/
-'''
+dependencies = [
+    "click",
+    "daiquiri",
+    "lxml",
+    "pendulum",
+    "pytest",
+    "psycopg2",
+    "requests",
+    "setuptools",
+    "sqlalchemy==1.4.46",
+    "wheel",
+]
+
+[project.scripts]
+sniffer = "sniffer.sniff:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["sniffer*"]
+exclude = ["tests*", "tests", "tests.*"]
