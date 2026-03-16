@@ -134,4 +134,6 @@ dmypy.json
 config.py
 *.sqlite
 tests/data
-*_date.txt
+*_date.txt# pixi environments
+.pixi/*
+!.pixi/config.toml
